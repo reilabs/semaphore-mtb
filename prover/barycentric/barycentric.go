@@ -21,21 +21,18 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 		return err
 	}
 
+	// Convert frontend.Variables to field elements
+	api.AssertIsEqual(len(circuit.XNodes), len(circuit.YNodes))
 	xNodesFe := make([]emulated.Element[T], len(circuit.XNodes))
-	for xNodeId, xNode := range circuit.XNodes {
-		xNodesFe[xNodeId] = variableToFieldElement(field, api, xNode)
-	}
-
 	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
-	for yNodeId, yNode := range circuit.YNodes {
-		yNodesFe[yNodeId] = variableToFieldElement(field, api, yNode)
+	for i := range circuit.XNodes {
+		xNodesFe[i] = variableToFieldElement(field, api, circuit.XNodes[i])
+		yNodesFe[i] = variableToFieldElement(field, api, circuit.YNodes[i])
 	}
-
 	interpolatedPointFe := variableToFieldElement(field, api, circuit.InterpolatedPoint)
 
-
 	weights := calculateWeights[T](field, xNodesFe)
-	interpolatedPoint := barycentricPolynomial[T](field, xNodesFe, yNodesFe, weights, interpolatedPointFe)
+	interpolatedPoint := barycentricPolynomial[T](field, weights, xNodesFe, yNodesFe, interpolatedPointFe)
 
 	field.AssertIsEqual(&interpolatedPointFe, &interpolatedPoint)
 
@@ -75,7 +72,7 @@ func calculateWeights[T emulated.FieldParams](field *emulated.Field[T], xNodes [
 
 func barycentricPolynomial[T emulated.FieldParams](
 	field *emulated.Field[T],
-	xNodes, yNodes, weights []emulated.Element[T],
+	weights, xNodes, yNodes []emulated.Element[T],
 	targetPoint emulated.Element[T],
 	) emulated.Element[T] {
 	n := len(xNodes)
