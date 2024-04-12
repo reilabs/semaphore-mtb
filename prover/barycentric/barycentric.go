@@ -26,6 +26,10 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 	xNodesFe := make([]emulated.Element[T], len(circuit.XNodes))
 	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
 	for i := range circuit.XNodes {
+		if circuit.XNodes[i] == circuit.TargetPoint {
+			api.AssertIsEqual(circuit.YNodes[i], circuit.InterpolatedPoint)
+			return nil
+		}
 		xNodesFe[i] = variableToFieldElement(field, api, circuit.XNodes[i])
 		yNodesFe[i] = variableToFieldElement(field, api, circuit.YNodes[i])
 	}
@@ -53,11 +57,6 @@ func calculateWeights[T emulated.FieldParams](field *emulated.Field[T], xNodes [
 	weights := make([]emulated.Element[T], n)
 
 	for j := 0; j < n; j++ {
-		// TODO
-		// If x matches one of the interpolation nodes exactly, return the corresponding y value immediately
-		// if x == xNodes[j] {
-		// 	return yNodes[j]
-		// }
 		w := emulated.ValueOf[T](1)
 		for k := 0; k < n; k++ {
 			if k != j {
