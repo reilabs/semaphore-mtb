@@ -26,7 +26,7 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 		xNodesFe[xNodeId] = variableToFieldElement(field, api, xNode)
 	}
 
-	yNodesFe := make([]emulated.Element[T], len(circuit.XNodes))
+	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
 	for yNodeId, yNode := range circuit.YNodes {
 		yNodesFe[yNodeId] = variableToFieldElement(field, api, yNode)
 	}
