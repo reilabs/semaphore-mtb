@@ -29,12 +29,13 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 		xNodesFe[i] = variableToFieldElement(field, api, circuit.XNodes[i])
 		yNodesFe[i] = variableToFieldElement(field, api, circuit.YNodes[i])
 	}
+	targetPointFe := variableToFieldElement(field, api, circuit.TargetPoint)
 	interpolatedPointFe := variableToFieldElement(field, api, circuit.InterpolatedPoint)
 
 	weights := calculateWeights[T](field, xNodesFe)
-	interpolatedPoint := barycentricPolynomial[T](field, weights, xNodesFe, yNodesFe, interpolatedPointFe)
+	interpolatedPointCalculated := barycentricPolynomial[T](field, weights, xNodesFe, yNodesFe, targetPointFe)
 
-	field.AssertIsEqual(&interpolatedPointFe, &interpolatedPoint)
+	field.AssertIsEqual(&interpolatedPointFe, &interpolatedPointCalculated)
 
 	return nil
 }
