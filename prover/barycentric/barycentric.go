@@ -60,8 +60,7 @@ func calculateWeights[T emulated.FieldParams](field *emulated.Field[T], xNodes [
 		w := emulated.ValueOf[T](1)
 		for k := 0; k < n; k++ {
 			if k != j {
-				sub := field.Sub(&xNodes[j], &xNodes[k])
-				w = *field.Mul(&w, field.Inverse(sub))
+				w = *field.Div(&w, field.Sub(&xNodes[j], &xNodes[k]))
 			}
 		}
 		weights[j] = w
