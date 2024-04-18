@@ -1,6 +1,8 @@
 package barycentric
 
 import (
+	"math/big"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
 )
@@ -56,7 +58,7 @@ func calculateWeights[T emulated.FieldParams](field *emulated.Field[T], xNodes [
 	n := len(xNodes)
 	weights := make([]emulated.Element[T], n)
 
-	for j := 0; j < n; j++ {
+	for j := range n {
 		w := emulated.ValueOf[T](1)
 		for k := 0; k < n; k++ {
 			if k != j {
@@ -78,11 +80,86 @@ func barycentricPolynomial[T emulated.FieldParams](
 	numerator := emulated.ValueOf[T](0)
 	denominator := emulated.ValueOf[T](0)
 
-	for j := 0; j < n; j++ {
+	for j := range n {
 		temp := field.Div(&weights[j], field.Sub(&targetPoint, &xNodes[j]))
 		numerator = *field.Add(&numerator, field.Mul(temp, &yNodes[j]))
 		denominator = *field.Add(&denominator, temp)
 	}
 
 	return *field.Div(&numerator, &denominator)
+}
+
+type CircuitDankrad[T emulated.FieldParams] struct {
+	Omega big.Int // ω
+
+	// Inputs (private)
+	YNodes []frontend.Variable
+	TargetPoint frontend.Variable
+
+	// Output
+	InterpolatedPoint frontend.Variable `gnark:",public"`
+}
+
+func (circuit *CircuitDankrad[T]) Define(api frontend.API) error {
+	field, err := emulated.NewField[T](api)
+	if err != nil {
+		return err
+	}
+
+	api.AssertIsEqual(len(circuit.YNodes), polynomialDegree)
+
+	// Convert frontend.Variables to field elements
+	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
+	for i, node := range circuit.YNodes {
+		yNodesFe[i] = variableToFieldElement(field, api, node)
+	}
+	wFe := variableToFieldElement(field, api, circuit.Omega)
+	targetPointFe := variableToFieldElement(field, api, circuit.TargetPoint)
+	interpolatedPointFe := variableToFieldElement(field, api, circuit.InterpolatedPoint)
+
+	interpolatedPointCalculated := dankradBarycentricPolynomial[T](field, wFe, yNodesFe, targetPointFe)
+
+	field.AssertIsEqual(&interpolatedPointFe, &interpolatedPointCalculated)
+
+	return nil
+}
+
+// TODO this may be big.int in circuit
+// TODO this will be 4096
+const polynomialDegree = 3
+
+func fieldPow[T emulated.FieldParams](field *emulated.Field[T], base *emulated.Element[T], exp int) *emulated.Element[T] {
+	res := emulated.ValueOf[T](1)
+	for i := 0; i < exp; i++ {
+		res = *field.Mul(&res, base)
+	}
+
+	return &res
+}
+
+func dankradBarycentricPolynomial[T emulated.FieldParams](
+	field *emulated.Field[T],
+	omega emulated.Element[T],
+	yNodes []emulated.Element[T],
+	targetPoint emulated.Element[T],
+) emulated.Element[T] {
+
+	// First term: (z^d - 1) / d
+	zToD := fieldPow(field, &targetPoint, polynomialDegree)
+	one := emulated.ValueOf[T](1)
+	firstTerm := *field.Sub(zToD, &one)
+	d := emulated.ValueOf[T](polynomialDegree)
+	firstTerm = *field.Div(&firstTerm, &d)
+
+	// Second term: Σ(f_i * ω^i)/(z - ω^i) from i=0 to d-1
+	secondTerm := emulated.ValueOf[T](0)
+	for i := range polynomialDegree {
+		omegaToI := fieldPow[T](field, &omega, i)
+		numerator := *field.Mul(&yNodes[i], omegaToI)
+		denominator := *field.Sub(&targetPoint, omegaToI)
+		term := *field.Div(&numerator, &denominator)
+		secondTerm = *field.Add(&secondTerm, &term)
+	}
+
+	return *field.Mul(&firstTerm, &secondTerm)
 }
