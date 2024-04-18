@@ -1,6 +1,6 @@
 module worldcoin/gnark-mbu
 
-go 1.20
+go 1.22.2
 
 require (
 	github.com/consensys/gnark v0.9.2-0.20240322153533-3abde1199375
