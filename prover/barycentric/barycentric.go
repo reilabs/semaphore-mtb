@@ -128,15 +128,6 @@ func (circuit *CircuitDankrad[T]) Define(api frontend.API) error {
 // TODO this will be 4096
 const polynomialDegree = 3
 
-func fieldPow[T emulated.FieldParams](field *emulated.Field[T], base *emulated.Element[T], exp int) *emulated.Element[T] {
-	res := emulated.ValueOf[T](1)
-	for i := 0; i < exp; i++ {
-		res = *field.Mul(&res, base)
-	}
-
-	return &res
-}
-
 func dankradBarycentricPolynomial[T emulated.FieldParams](
 	field *emulated.Field[T],
 	omega emulated.Element[T],
@@ -145,17 +136,18 @@ func dankradBarycentricPolynomial[T emulated.FieldParams](
 ) emulated.Element[T] {
 
 	// First term: (z^d - 1) / d
-	zToD := fieldPow(field, &targetPoint, polynomialDegree)
+	d := emulated.ValueOf[T](polynomialDegree)
+	zToD := field.Exp(&targetPoint, &d)
 	one := emulated.ValueOf[T](1)
 	firstTerm := *field.Sub(zToD, &one)
-	d := emulated.ValueOf[T](polynomialDegree)
 	firstTerm = *field.Div(&firstTerm, &d)
 
 	// Second term: Σ(f_i * ω^i)/(z - ω^i) from i=0 to d-1
 	secondTerm := emulated.ValueOf[T](0)
-	for i := range polynomialDegree {
-		omegaToI := fieldPow[T](field, &omega, i)
-		numerator := *field.Mul(&yNodes[i], omegaToI)
+	for degree := range polynomialDegree {
+		i := emulated.ValueOf[T](degree)
+		omegaToI := field.Exp(&omega, &i)
+		numerator := *field.Mul(&yNodes[degree], omegaToI)
 		denominator := *field.Sub(&targetPoint, omegaToI)
 		term := *field.Div(&numerator, &denominator)
 		secondTerm = *field.Add(&secondTerm, &term)
