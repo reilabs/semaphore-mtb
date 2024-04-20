@@ -122,7 +122,7 @@ func (circuit *CircuitDankrad[T]) Define(api frontend.API) error {
 
 // TODO this may be big.int in circuit
 // TODO this will be 4096
-const polynomialDegree = 3
+const polynomialDegree = 4
 
 func dankradBarycentricPolynomial[T emulated.FieldParams](
 	field *emulated.Field[T],

@@ -39,15 +39,15 @@ func TestDankradBarycentricCircuit(t *testing.T) {
 
 	circuit := CircuitDankrad[emulated.BLS12381Fr]{
 		Omega:  *big.NewInt(0),
-		YNodes: make([]frontend.Variable, 3),
+		YNodes: make([]frontend.Variable, 4),
 	}
 
 	assignment := CircuitDankrad[emulated.BLS12381Fr]{
 		// TODO this will be 10238227357739495823651030575849232062558860180284477541189508159991286009131
-		Omega:  *big.NewInt(3),
-		YNodes:            []frontend.Variable{2, 3, 4},
-		TargetPoint:       2,
-		InterpolatedPoint: 3,
+		Omega:  *big.NewInt(2), // 1 2 4 8
+		YNodes:            []frontend.Variable{1, 8, 64, 512},
+		TargetPoint:       3,
+		InterpolatedPoint: 27,
 	}
 
 	assert.CheckCircuit(
