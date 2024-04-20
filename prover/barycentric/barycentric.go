@@ -28,10 +28,6 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 	xNodesFe := make([]emulated.Element[T], len(circuit.XNodes))
 	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
 	for i := range circuit.XNodes {
-		if circuit.XNodes[i] == circuit.TargetPoint {
-			api.AssertIsEqual(circuit.YNodes[i], circuit.InterpolatedPoint)
-			return nil
-		}
 		xNodesFe[i] = variableToFieldElement(field, api, circuit.XNodes[i])
 		yNodesFe[i] = variableToFieldElement(field, api, circuit.YNodes[i])
 	}

@@ -15,15 +15,15 @@ func TestBarycentricCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	circuit := Circuit[emulated.BLS12381Fr]{
-		XNodes:            make([]frontend.Variable, 3),
-		YNodes:            make([]frontend.Variable, 3),
+		XNodes:            make([]frontend.Variable, 4),
+		YNodes:            make([]frontend.Variable, 4),
 	}
 
 	assignment := Circuit[emulated.BLS12381Fr]{
-		XNodes:            []frontend.Variable{1, 2, 3},
-		YNodes:            []frontend.Variable{2, 3, 4},
-		TargetPoint:       2,
-		InterpolatedPoint: 3,
+		XNodes:            []frontend.Variable{1, 2, 4, 8},
+		YNodes:            []frontend.Variable{1, 8, 64, 512},
+		TargetPoint:       3,
+		InterpolatedPoint: 27,
 	}
 
 	assert.CheckCircuit(
