@@ -3,7 +3,7 @@ module worldcoin/gnark-mbu
 go 1.22.2
 
 require (
-	github.com/consensys/gnark v0.9.2-0.20240322153533-3abde1199375
+	github.com/consensys/gnark v0.9.2-0.20240420025424-c9022441484e
 	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/prometheus/client_golang v1.14.0
 	github.com/reilabs/gnark-lean-extractor/v3 v3.0.0-20240328211639-501e57e18613
