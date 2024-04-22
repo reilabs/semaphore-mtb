@@ -131,6 +131,9 @@ func dankradBarycentricPolynomial[T emulated.FieldParams](
 	targetPoint emulated.Element[T],
 ) emulated.Element[T] {
 
+	// TODO we're using field.Exp() here which works on variable exponent.
+	// We probably can simplify this to constant exponent for cheaper calculations.
+
 	// First term: (z^d - 1) / d
 	d := emulated.ValueOf[T](polynomialDegree)
 	zToD := field.Exp(&targetPoint, &d)
