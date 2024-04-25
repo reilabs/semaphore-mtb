@@ -36,7 +36,6 @@ func (c *BaseTo10Circuit[T]) Define(api frontend.API) error {
 func TestExp(t *testing.T) {
 	assert := test.NewAssert(t)
 
-
 	assignment := BaseTo10Circuit[emulated.BLS12381Fr]{
 		2,
 		1024,
@@ -45,7 +44,7 @@ func TestExp(t *testing.T) {
 	assert.CheckCircuit(
 		&BaseTo10Circuit[emulated.BLS12381Fr]{},
 		test.WithBackends(backend.GROTH16),
-		test.WithCurves(ecc.BLS12_381),
+		test.WithCurves(ecc.BN254),
 		test.WithValidAssignment(&assignment),
 	)
 }

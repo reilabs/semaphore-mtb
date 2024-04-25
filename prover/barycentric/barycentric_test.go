@@ -62,11 +62,6 @@ func barycentricFormula(rou, modulus, target *big.Int, interpolated []big.Int) *
 func TestDankradBarycentricCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	circuit := CircuitDankrad[emulated.BLS12381Fr]{
-		Omega:  *big.NewInt(0),
-		YNodes: make([]frontend.Variable, 4),
-	}
-
 	modulus, ok := new(big.Int).SetString("52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
 	assert.True(ok)
 	modulus2, ok := new(big.Int).SetString("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 16)
@@ -80,44 +75,39 @@ func TestDankradBarycentricCircuit(t *testing.T) {
 	// (foo^(2^30))^4 = foo ^ (4 * 2 ^ 30) = foo ^ (2^2 * 2^30) = foo ^ (2 ^ 32) = 1
 
 	for range 30 {
-		fmt.Println(foo)
+		//fmt.Println(foo)
 		foo.Mul(foo, foo)
 		foo.Mod(foo, modulus)
 	}
 	fmt.Println(foo)
 
-	for i := range 17 {
-		fmt.Println(new(big.Int).Exp(foo, big.NewInt(int64(i)), modulus))
+	circuit := CircuitDankrad[emulated.BLS12381Fr]{
+		Omega:  *foo,
+		YNodes: make([]frontend.Variable, 4),
 	}
 
 	interpolatedBI := make([]big.Int, 4)
 	for i := range 4 {
 		interpolatedBI[i] = *new(big.Int).Exp(foo, big.NewInt(int64(i*3)), modulus)
-		fmt.Println(&interpolatedBI[i])
 	}
 
 	fmt.Println(barycentricFormula(foo, modulus, big.NewInt(3), interpolatedBI))
 
 	interpolated := make([]frontend.Variable, 4)
 	for i := range 4 {
-		interpolated[i] = new(big.Int).Exp(foo, big.NewInt(int64(i*3)), modulus)
-		fmt.Println(interpolated[i])
+		interpolated[i] = interpolatedBI[i]
 	}
 
-	unexpectedlyExpected, ok := new(big.Int).SetString("-2097435007005047619177909620327438633507622100021105512905054290570919745945600", 10)
-	assert.True(ok)
-
 	assignment := CircuitDankrad[emulated.BLS12381Fr]{
-		Omega:             *foo,
 		YNodes:            interpolated,
-		TargetPoint:       *unexpectedlyExpected,
+		TargetPoint:       3,
 		InterpolatedPoint: 27,
 	}
 
 	assert.CheckCircuit(
 		&circuit,
 		test.WithBackends(backend.GROTH16),
-		test.WithCurves(ecc.BLS12_381),
+		test.WithCurves(ecc.BN254),
 		test.WithValidAssignment(&assignment),
 	)
 }

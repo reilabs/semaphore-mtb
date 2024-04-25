@@ -9,8 +9,8 @@ import (
 
 type Circuit[T emulated.FieldParams] struct {
 	// Inputs (private)
-	XNodes []frontend.Variable
-	YNodes []frontend.Variable
+	XNodes      []frontend.Variable
+	YNodes      []frontend.Variable
 	TargetPoint frontend.Variable
 
 	// Output
@@ -46,7 +46,7 @@ func variableToFieldElement[T emulated.FieldParams](
 	field *emulated.Field[T],
 	api frontend.API,
 	variable frontend.Variable,
-	) emulated.Element[T] {
+) emulated.Element[T] {
 	return *field.FromBits(api.ToBinary(variable)...)
 }
 
@@ -71,7 +71,7 @@ func barycentricPolynomial[T emulated.FieldParams](
 	field *emulated.Field[T],
 	weights, xNodes, yNodes []emulated.Element[T],
 	targetPoint emulated.Element[T],
-	) emulated.Element[T] {
+) emulated.Element[T] {
 	n := len(xNodes)
 	numerator := emulated.ValueOf[T](0)
 	denominator := emulated.ValueOf[T](0)
@@ -89,7 +89,7 @@ type CircuitDankrad[T emulated.FieldParams] struct {
 	Omega big.Int // ω
 
 	// Inputs (private)
-	YNodes []frontend.Variable
+	YNodes      []emulated.Element[]
 	TargetPoint frontend.Variable
 
 	// Output
