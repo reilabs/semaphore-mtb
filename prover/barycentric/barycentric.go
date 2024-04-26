@@ -1,64 +1,14 @@
 package barycentric
 
 import (
-	"math/big"
-
-	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
 )
-
-func variableToFieldElement[T emulated.FieldParams](
-	field *emulated.Field[T],
-	api frontend.API,
-	variable frontend.Variable,
-) emulated.Element[T] {
-	return *field.FromBits(api.ToBinary(variable)...)
-}
-
-type Circuit[T emulated.FieldParams] struct {
-	Omega big.Int // ω
-
-	// Inputs (private)
-	YNodes      []frontend.Variable
-	TargetPoint frontend.Variable
-
-	// Output
-	InterpolatedPoint frontend.Variable `gnark:",public"`
-}
-
-func (circuit *Circuit[T]) Define(api frontend.API) error {
-	field, err := emulated.NewField[T](api)
-	if err != nil {
-		return err
-	}
-
-	api.AssertIsEqual(len(circuit.YNodes), polynomialDegree)
-
-	// Convert frontend.Variables to field elements
-	yNodes := make([]emulated.Element[T], len(circuit.YNodes))
-	omegasToI := make([]emulated.Element[T], polynomialDegree)
-	omegaToI := big.NewInt(1)
-	for i := range polynomialDegree {
-		omegasToI[i] = emulated.ValueOf[T](omegaToI)
-		omegaToI.Mul(omegaToI, &circuit.Omega)
-
-		yNodes[i] = variableToFieldElement(field, api, circuit.YNodes[i])
-	}
-	targetPoint := variableToFieldElement(field, api, circuit.TargetPoint)
-	interpolatedPoint := variableToFieldElement(field, api, circuit.InterpolatedPoint)
-
-	interpolatedPointCalculated := calculateBarycentricFormula[T](field, omegasToI, yNodes, targetPoint)
-
-	field.AssertIsEqual(&interpolatedPoint, &interpolatedPointCalculated)
-
-	return nil
-}
 
 // TODO this may be big.int in circuit
 // TODO this will be 4096
 const polynomialDegree = 4
 
-func calculateBarycentricFormula[T emulated.FieldParams](
+func CalculateBarycentricFormula[T emulated.FieldParams](
 	field *emulated.Field[T],
 	omegasToI, yNodes []emulated.Element[T],
 	targetPoint emulated.Element[T],

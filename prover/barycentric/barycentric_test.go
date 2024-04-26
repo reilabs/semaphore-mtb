@@ -11,7 +11,55 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestBarycentricCircuit(t *testing.T) {
+func variableToFieldElement[T emulated.FieldParams](
+	field *emulated.Field[T],
+	api frontend.API,
+	variable frontend.Variable,
+) emulated.Element[T] {
+	return *field.FromBits(api.ToBinary(variable)...)
+}
+
+type BarycentricCircuit[T emulated.FieldParams] struct {
+	Omega big.Int // ω
+
+	// Inputs (private)
+	YNodes      []frontend.Variable
+	TargetPoint frontend.Variable
+
+	// Output
+	InterpolatedPoint frontend.Variable `gnark:",public"`
+}
+
+func (circuit *BarycentricCircuit[T]) Define(api frontend.API) error {
+	field, err := emulated.NewField[T](api)
+	if err != nil {
+		return err
+	}
+
+	api.AssertIsEqual(len(circuit.YNodes), polynomialDegree)
+
+	// Convert frontend.Variables to field elements
+	yNodes := make([]emulated.Element[T], len(circuit.YNodes))
+	omegasToI := make([]emulated.Element[T], polynomialDegree)
+	omegaToI := big.NewInt(1)
+	for i := range polynomialDegree {
+		omegasToI[i] = emulated.ValueOf[T](omegaToI)
+		omegaToI.Mul(omegaToI, &circuit.Omega)
+
+		yNodes[i] = variableToFieldElement(field, api, circuit.YNodes[i])
+	}
+	targetPoint := variableToFieldElement(field, api, circuit.TargetPoint)
+	interpolatedPoint := variableToFieldElement(field, api, circuit.InterpolatedPoint)
+
+	// Method under test
+	interpolatedPointCalculated := CalculateBarycentricFormula[T](field, omegasToI, yNodes, targetPoint)
+
+	field.AssertIsEqual(&interpolatedPoint, &interpolatedPointCalculated)
+
+	return nil
+}
+
+func TestCalculateBarycentricFormula(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	modulus, ok := new(big.Int).SetString("52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
@@ -28,7 +76,7 @@ func TestBarycentricCircuit(t *testing.T) {
 		omega.Mod(omega, modulus)
 	}
 
-	circuit := Circuit[emulated.BLS12381Fr]{
+	circuit := BarycentricCircuit[emulated.BLS12381Fr]{
 		Omega:  *omega,
 		YNodes: make([]frontend.Variable, 4),
 	}
@@ -43,7 +91,7 @@ func TestBarycentricCircuit(t *testing.T) {
 		interpolated[i] = interpolatedBI[i]
 	}
 
-	assignment := Circuit[emulated.BLS12381Fr]{
+	assignment := BarycentricCircuit[emulated.BLS12381Fr]{
 		YNodes:            interpolated,
 		TargetPoint:       3,
 		InterpolatedPoint: 27,
