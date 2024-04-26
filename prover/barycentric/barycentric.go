@@ -89,7 +89,7 @@ type CircuitDankrad[T emulated.FieldParams] struct {
 	Omega big.Int // ω
 
 	// Inputs (private)
-	YNodes      []emulated.Element[]
+	YNodes      []frontend.Variable
 	TargetPoint frontend.Variable
 
 	// Output
