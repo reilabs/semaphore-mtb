@@ -35,21 +35,21 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 	api.AssertIsEqual(len(circuit.YNodes), polynomialDegree)
 
 	// Convert frontend.Variables to field elements
-	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
-	omegasToIFe := make([]emulated.Element[T], polynomialDegree)
+	yNodes := make([]emulated.Element[T], len(circuit.YNodes))
+	omegasToI := make([]emulated.Element[T], polynomialDegree)
 	omegaToI := big.NewInt(1)
 	for i := range polynomialDegree {
-		omegasToIFe[i] = emulated.ValueOf[T](omegaToI)
+		omegasToI[i] = emulated.ValueOf[T](omegaToI)
 		omegaToI.Mul(omegaToI, &circuit.Omega)
 
-		yNodesFe[i] = variableToFieldElement(field, api, circuit.YNodes[i])
+		yNodes[i] = variableToFieldElement(field, api, circuit.YNodes[i])
 	}
-	targetPointFe := variableToFieldElement(field, api, circuit.TargetPoint)
-	interpolatedPointFe := variableToFieldElement(field, api, circuit.InterpolatedPoint)
+	targetPoint := variableToFieldElement(field, api, circuit.TargetPoint)
+	interpolatedPoint := variableToFieldElement(field, api, circuit.InterpolatedPoint)
 
-	interpolatedPointCalculated := calculateBarycentricFormula[T](field, omegasToIFe, yNodesFe, targetPointFe)
+	interpolatedPointCalculated := calculateBarycentricFormula[T](field, omegasToI, yNodes, targetPoint)
 
-	field.AssertIsEqual(&interpolatedPointFe, &interpolatedPointCalculated)
+	field.AssertIsEqual(&interpolatedPoint, &interpolatedPointCalculated)
 
 	return nil
 }
