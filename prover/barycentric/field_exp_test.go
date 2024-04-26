@@ -1,6 +1,9 @@
 package barycentric
 
 import (
+	"fmt"
+	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -10,41 +13,59 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-type BaseTo10Circuit[T emulated.FieldParams] struct {
+type ExpCircuit[T emulated.FieldParams] struct {
 	Base frontend.Variable
-	// Exp = 10
+	Exp int
 	Res frontend.Variable
 }
 
-func (c *BaseTo10Circuit[T]) Define(api frontend.API) error {
+func (c *ExpCircuit[T]) Define(api frontend.API) error {
 	field, err := emulated.NewField[T](api)
 	if err != nil {
 		return err
 	}
 
-	x := variableToFieldElement[T](field, api, c.Base)
-	y := 10
-	z := variableToFieldElement[T](field, api, c.Res)
+	base := variableToFieldElement[T](field, api, c.Base)
+	res := variableToFieldElement[T](field, api, c.Res)
 
-	field.AssertIsEqual(
-		exp[T](field, &x, y),
-		&z)
+	// Function under test
+	calculatedRes := Exp[T](field, &base, c.Exp)
+
+	field.AssertIsEqual(calculatedRes, &res)
 
 	return nil
 }
 
+func randomPower() (int, int, *big.Int) {
+	base := rand.Intn(16)
+	exponent := rand.Intn(16)
+	result := new(big.Int).Exp(big.NewInt(int64(base)), big.NewInt(int64(exponent)), nil)
+	return base, exponent, result
+}
 func TestExp(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	assignment := BaseTo10Circuit[emulated.BLS12381Fr]{
-		2,
-		1024,
-	}
+	for range 16 {  // Arbitrary choice of number of tests
+		base, exp, want := randomPower()
+		circuit := ExpCircuit[emulated.BLS12381Fr]{
+			Exp: exp,
+		}
 
-	assert.CheckCircuit(
-		&BaseTo10Circuit[emulated.BLS12381Fr]{},
-		test.WithBackends(backend.GROTH16),
-		test.WithCurves(ecc.BN254),
-		test.WithValidAssignment(&assignment),
-	)
+		assignment := ExpCircuit[emulated.BLS12381Fr]{
+			Base: base,
+			Res: want,
+		}
+
+		t.Run(
+			fmt.Sprintf("%d^%d", base, exp),
+			func(t *testing.T) {
+				assert.CheckCircuit(
+					&circuit,
+					test.WithBackends(backend.GROTH16),
+					test.WithCurves(ecc.BN254),
+					test.WithValidAssignment(&assignment),
+				)
+			},
+		)
+	}
 }

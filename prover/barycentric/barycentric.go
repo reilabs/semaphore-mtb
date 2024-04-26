@@ -18,9 +18,9 @@ func CalculateBarycentricFormula[T emulated.FieldParams](
 	// We probably can simplify this to constant exponent for cheaper calculations.
 
 	// First term: (z^d - 1) / d
-	d := emulated.ValueOf[T](polynomialDegree)
-	zToD := field.Exp(&targetPoint, &d)
+	zToD := Exp(field, &targetPoint, polynomialDegree)
 	firstTerm := *field.Sub(zToD, field.One())
+	d := emulated.ValueOf[T](polynomialDegree)
 	firstTerm = *field.Div(&firstTerm, &d)
 
 	// Second term: Σ(f_i * ω^i)/(z - ω^i) from i=0 to d-1

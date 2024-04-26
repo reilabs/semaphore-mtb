@@ -2,12 +2,15 @@ package barycentric
 
 import "github.com/consensys/gnark/std/math/emulated"
 
-func exp[T emulated.FieldParams](field *emulated.Field[T], base *emulated.Element[T], exp int) *emulated.Element[T] {
+func Exp[T emulated.FieldParams](field *emulated.Field[T], base *emulated.Element[T],
+	exponent int) *emulated.Element[T] {
 	res := field.One()
-
-	for _ = range exp {
-		res = field.Mul(res, base)
+	for exponent > 0 {
+		if exponent%2 == 1 {
+			res = field.Mul(res, base)
+		}
+		base = field.Mul(base, base)
+		exponent /= 2
 	}
-
 	return res
 }
