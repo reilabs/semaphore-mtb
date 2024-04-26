@@ -1,4 +1,4 @@
-package barycentric
+package field_utils
 
 import (
 	"fmt"
@@ -25,8 +25,8 @@ func (c *ExpCircuit[T]) Define(api frontend.API) error {
 		return err
 	}
 
-	base := variableToFieldElement[T](field, api, c.Base)
-	res := variableToFieldElement[T](field, api, c.Res)
+	base := VariableToFieldElement[T](field, api, c.Base)
+	res := VariableToFieldElement[T](field, api, c.Res)
 
 	// Function under test
 	calculatedRes := Exp[T](field, &base, c.Exp)
@@ -42,6 +42,7 @@ func randomPower() (int, int, *big.Int) {
 	result := new(big.Int).Exp(big.NewInt(int64(base)), big.NewInt(int64(exponent)), nil)
 	return base, exponent, result
 }
+
 func TestExp(t *testing.T) {
 	assert := test.NewAssert(t)
 

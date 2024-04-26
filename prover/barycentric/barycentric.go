@@ -2,6 +2,8 @@ package barycentric
 
 import (
 	"github.com/consensys/gnark/std/math/emulated"
+
+	"worldcoin/gnark-mbu/prover/field_utils"
 )
 
 // TODO this may be big.int in circuit
@@ -18,7 +20,7 @@ func CalculateBarycentricFormula[T emulated.FieldParams](
 	// We probably can simplify this to constant exponent for cheaper calculations.
 
 	// First term: (z^d - 1) / d
-	zToD := Exp(field, &targetPoint, polynomialDegree)
+	zToD := field_utils.Exp(field, &targetPoint, polynomialDegree)
 	firstTerm := *field.Sub(zToD, field.One())
 	d := emulated.ValueOf[T](polynomialDegree)
 	firstTerm = *field.Div(&firstTerm, &d)

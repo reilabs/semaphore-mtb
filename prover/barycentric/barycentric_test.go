@@ -9,15 +9,9 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/test"
-)
 
-func variableToFieldElement[T emulated.FieldParams](
-	field *emulated.Field[T],
-	api frontend.API,
-	variable frontend.Variable,
-) emulated.Element[T] {
-	return *field.FromBits(api.ToBinary(variable)...)
-}
+	"worldcoin/gnark-mbu/prover/field_utils"
+)
 
 type BarycentricCircuit[T emulated.FieldParams] struct {
 	Omega big.Int // ω
@@ -46,10 +40,10 @@ func (circuit *BarycentricCircuit[T]) Define(api frontend.API) error {
 		omegasToI[i] = emulated.ValueOf[T](omegaToI)
 		omegaToI.Mul(omegaToI, &circuit.Omega)
 
-		yNodes[i] = variableToFieldElement(field, api, circuit.YNodes[i])
+		yNodes[i] = field_utils.VariableToFieldElement(field, api, circuit.YNodes[i])
 	}
-	targetPoint := variableToFieldElement(field, api, circuit.TargetPoint)
-	interpolatedPoint := variableToFieldElement(field, api, circuit.InterpolatedPoint)
+	targetPoint := field_utils.VariableToFieldElement(field, api, circuit.TargetPoint)
+	interpolatedPoint := field_utils.VariableToFieldElement(field, api, circuit.InterpolatedPoint)
 
 	// Method under test
 	interpolatedPointCalculated := CalculateBarycentricFormula[T](field, omegasToI, yNodes, targetPoint)
