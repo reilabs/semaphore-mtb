@@ -36,14 +36,18 @@ func (circuit *Circuit[T]) Define(api frontend.API) error {
 
 	// Convert frontend.Variables to field elements
 	yNodesFe := make([]emulated.Element[T], len(circuit.YNodes))
-	for i, node := range circuit.YNodes {
-		yNodesFe[i] = variableToFieldElement(field, api, node)
+	omegasToIFe := make([]emulated.Element[T], polynomialDegree)
+	omegaToI := big.NewInt(1)
+	for i := range polynomialDegree {
+		omegasToIFe[i] = emulated.ValueOf[T](omegaToI)
+		omegaToI.Mul(omegaToI, &circuit.Omega)
+
+		yNodesFe[i] = variableToFieldElement(field, api, circuit.YNodes[i])
 	}
-	wFe := variableToFieldElement(field, api, circuit.Omega)
 	targetPointFe := variableToFieldElement(field, api, circuit.TargetPoint)
 	interpolatedPointFe := variableToFieldElement(field, api, circuit.InterpolatedPoint)
 
-	interpolatedPointCalculated := calculateBarycentricFormula[T](field, wFe, yNodesFe, targetPointFe)
+	interpolatedPointCalculated := calculateBarycentricFormula[T](field, omegasToIFe, yNodesFe, targetPointFe)
 
 	field.AssertIsEqual(&interpolatedPointFe, &interpolatedPointCalculated)
 
@@ -56,8 +60,7 @@ const polynomialDegree = 4
 
 func calculateBarycentricFormula[T emulated.FieldParams](
 	field *emulated.Field[T],
-	omega emulated.Element[T],
-	yNodes []emulated.Element[T],
+	omegasToI, yNodes []emulated.Element[T],
 	targetPoint emulated.Element[T],
 ) emulated.Element[T] {
 
@@ -72,11 +75,9 @@ func calculateBarycentricFormula[T emulated.FieldParams](
 
 	// Second term: Σ(f_i * ω^i)/(z - ω^i) from i=0 to d-1
 	secondTerm := field.Zero()
-	for degree := range polynomialDegree {
-		i := emulated.ValueOf[T](degree)
-		omegaToI := field.Exp(&omega, &i)
-		numerator := *field.Mul(&yNodes[degree], omegaToI)
-		denominator := *field.Sub(&targetPoint, omegaToI)
+	for i := range polynomialDegree {
+		numerator := *field.Mul(&yNodes[i], &omegasToI[i])
+		denominator := *field.Sub(&targetPoint, &omegasToI[i])
 		term := *field.Div(&numerator, &denominator)
 		secondTerm = field.Add(secondTerm, &term)
 	}
