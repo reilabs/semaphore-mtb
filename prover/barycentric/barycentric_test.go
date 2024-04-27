@@ -55,40 +55,41 @@ func (circuit *BarycentricCircuit[T]) Define(api frontend.API) error {
 }
 
 func TestCalculateBarycentricFormula(t *testing.T) {
+	const polynomialDegree = 4096
+
 	assert := test.NewAssert(t)
 
-	modulus, ok := new(big.Int).SetString("52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
-	assert.True(ok)
-	omega, _ := new(big.Int).SetString("10238227357739495823651030575849232062558860180284477541189508159991286009131",
-		10)
+	// The test assumes BLS12381Fr field
+	modulus, _ := new(big.Int).SetString(
+		"52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
 
-	// we have: foo^(2^32) = 1
-	// (foo^2)^(2^31) = foo ^ (2 * 2^31) = foo ^ (2 ^ 32) = 1
-	// (foo^(2^30))^4 = foo ^ (4 * 2 ^ 30) = foo ^ (2^2 * 2^30) = foo ^ (2 ^ 32) = 1
 
-	for range 30 {
+	// For polynomial degree d = 4096 = 2^12:
+	// ω^(2^32) = ω^(2^20 * 2^12)
+	// Calculate ω^20 starting with root of unity of 2^32 degree
+	omega, _ := new(big.Int).SetString(
+		"10238227357739495823651030575849232062558860180284477541189508159991286009131", 10)
+	for range 20 {
 		omega.Mul(omega, omega)
 		omega.Mod(omega, modulus)
 	}
 
 	circuit := BarycentricCircuit[emulated.BLS12381Fr]{
 		Omega:  *omega,
-		PolynomialDegree: 4,
-		YNodes: make([]frontend.Variable, 4),
+		PolynomialDegree: polynomialDegree,
+		YNodes: make([]frontend.Variable, polynomialDegree),
 	}
 
-	interpolatedBI := make([]big.Int, 4)
-	for i := range 4 {
-		interpolatedBI[i] = *new(big.Int).Exp(omega, big.NewInt(int64(i*3)), modulus)
-	}
-
-	interpolated := make([]frontend.Variable, 4)
-	for i := range 4 {
-		interpolated[i] = interpolatedBI[i]
+	// Test polynomial: f(x) = x^3
+	// Calculate f(ω) = ω^3 for
+	y := make([]frontend.Variable, polynomialDegree)
+	for i := range y {
+		y[i] = *new(big.Int).Exp(omega, big.NewInt(int64(i*3)), modulus)
 	}
 
 	assignment := BarycentricCircuit[emulated.BLS12381Fr]{
-		YNodes:            interpolated,
+		YNodes:            y,
+		// f(3)=3^3=27
 		TargetPoint:       3,
 		InterpolatedPoint: 27,
 	}
