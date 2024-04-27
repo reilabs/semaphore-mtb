@@ -16,9 +16,6 @@ func CalculateBarycentricFormula[T emulated.FieldParams](
 	targetPoint emulated.Element[T],
 ) emulated.Element[T] {
 
-	// TODO we're using field.Exp() here which works on variable exponent.
-	// We probably can simplify this to constant exponent for cheaper calculations.
-
 	// First term: (z^d - 1) / d
 	zToD := field_utils.Exp(field, &targetPoint, polynomialDegree)
 	firstTerm := *field.Sub(zToD, field.One())
