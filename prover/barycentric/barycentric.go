@@ -6,15 +6,13 @@ import (
 	"worldcoin/gnark-mbu/prover/field_utils"
 )
 
-// TODO this may be big.int in circuit
-// TODO this will be 4096
-const polynomialDegree = 4
-
 func CalculateBarycentricFormula[T emulated.FieldParams](
 	field *emulated.Field[T],
 	omegasToI, yNodes []emulated.Element[T],
 	targetPoint emulated.Element[T],
 ) emulated.Element[T] {
+
+	polynomialDegree := len(yNodes)
 
 	// First term: (z^d - 1) / d
 	zToD := field_utils.Exp(field, &targetPoint, polynomialDegree)

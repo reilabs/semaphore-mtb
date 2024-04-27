@@ -15,9 +15,10 @@ import (
 
 type BarycentricCircuit[T emulated.FieldParams] struct {
 	Omega big.Int // ω
+	PolynomialDegree int
 
 	// Inputs (private)
-	YNodes      []frontend.Variable
+	YNodes      []frontend.Variable  // len(YNodes) == PolynomialDegree
 	TargetPoint frontend.Variable
 
 	// Output
@@ -30,13 +31,13 @@ func (circuit *BarycentricCircuit[T]) Define(api frontend.API) error {
 		return err
 	}
 
-	api.AssertIsEqual(len(circuit.YNodes), polynomialDegree)
+	api.AssertIsEqual(len(circuit.YNodes), circuit.PolynomialDegree)
 
 	// Convert frontend.Variables to field elements
-	yNodes := make([]emulated.Element[T], len(circuit.YNodes))
-	omegasToI := make([]emulated.Element[T], polynomialDegree)
+	yNodes := make([]emulated.Element[T], circuit.PolynomialDegree)
+	omegasToI := make([]emulated.Element[T], circuit.PolynomialDegree)
 	omegaToI := big.NewInt(1)
-	for i := range polynomialDegree {
+	for i := range circuit.PolynomialDegree {
 		omegasToI[i] = emulated.ValueOf[T](omegaToI)
 		omegaToI.Mul(omegaToI, &circuit.Omega)
 
@@ -72,6 +73,7 @@ func TestCalculateBarycentricFormula(t *testing.T) {
 
 	circuit := BarycentricCircuit[emulated.BLS12381Fr]{
 		Omega:  *omega,
+		PolynomialDegree: 4,
 		YNodes: make([]frontend.Variable, 4),
 	}
 
