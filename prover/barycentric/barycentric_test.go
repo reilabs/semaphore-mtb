@@ -114,6 +114,7 @@ func TestCalculateBarycentricFormula(t *testing.T) {
 					res := new(big.Int).Add(a, b)
 					res.Add(res, c)
 					res.Add(res, big.NewInt(20))
+					res.Mod(res, modulus)
 
 					y[i] = res
 				}
