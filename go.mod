@@ -1,9 +1,9 @@
 module worldcoin/gnark-mbu
 
-go 1.20
+go 1.22.2
 
 require (
-	github.com/consensys/gnark v0.9.2-0.20240322153533-3abde1199375
+	github.com/consensys/gnark v0.10.1-0.20240504042958-c51abfa3c4e0
 	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/prometheus/client_golang v1.14.0
 	github.com/reilabs/gnark-lean-extractor/v3 v3.0.0-20240328211639-501e57e18613
@@ -29,6 +29,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/ronanh/intcomp v1.1.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
@@ -38,7 +39,7 @@ require (
 )
 
 require (
-	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
+	github.com/consensys/gnark-crypto v0.12.2-0.20240504013751-564b6f724c3b
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.5.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
