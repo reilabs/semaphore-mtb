@@ -1,7 +1,14 @@
 package prover
 
 import (
+	"math"
+	"math/big"
+
+	"github.com/consensys/gnark/std/math/emulated"
+
+	"worldcoin/gnark-mbu/prover/barycentric"
 	"worldcoin/gnark-mbu/prover/keccak"
+	"worldcoin/gnark-mbu/prover/poseidon"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
@@ -10,67 +17,153 @@ import (
 )
 
 type InsertionMbuCircuit struct {
-	// single public input
+	// public inputs
 	InputHash frontend.Variable `gnark:",public"`
-
-	// private inputs, but used as public inputs
-	StartIndex frontend.Variable   `gnark:"input"`
-	PreRoot    frontend.Variable   `gnark:"input"`
-	PostRoot   frontend.Variable   `gnark:"input"`
-	IdComms    []frontend.Variable `gnark:"input"`
+	// TODO: Gonna assert this == Y=W(X)
+	//   W - identities interpolating polynomial
+	//   X - keccak256(input_hash, 4844 commitment)
+	ExpectedEvaluation frontend.Variable `gnark:",public"` // TODO is this Y from the line above
+	Commitment4844     []frontend.Variable `gnark:",public"` // TODO is it var or []var
+	StartIndex         frontend.Variable `gnark:",public"`
+	PreRoot            frontend.Variable `gnark:",public"`
+	PostRoot           frontend.Variable `gnark:",public"`
 
 	// private inputs
+	IdComms      []frontend.Variable   `gnark:"input"` // TODO is this alo a polynomial W?
 	MerkleProofs [][]frontend.Variable `gnark:"input"`
 
 	BatchSize int
 	Depth     int
+	// TODO should these guys be here?
+	// Omega            big.Int // ω
+	// PolynomialDegree int
+}
+
+// getMerkleTreeRoot calculates the Merkle Tree root repeatedly hashing pairs of elements in the input slice until only
+// one element remains. This process effectively builds a binary tree of hashes, where each level of the tree is half
+// the size of the level below it.
+// At the end or the process the function returns the root value of such constructed Merkle Tree.
+func getMerkleTreeRoot(api frontend.API, input []frontend.Variable) frontend.Variable {
+	temp := input[:]
+	for len(input) > 1 {
+		newInput := make([]frontend.Variable, len(temp)/2)
+		for i := range newInput {
+			newInput[i] = abstractor.Call(
+				api, poseidon.Poseidon2{
+					In1: temp[2*i],
+					In2: temp[2*i+1],
+				},
+			)
+		}
+		temp = newInput
+	}
+	return temp[0]
+}
+
+type Fr = emulated.BLS12381Fr
+
+const polynomialDegree = 4096
+
+func computeOmegaToI() (*big.Int, *big.Int) {
+	// The function assumes BLS12381Fr field and a certain polynomial degree
+	modulus, _ := new(big.Int).SetString(
+		"52435875175126190479447740508185965837690552500527637822603658699938581184513", 10,
+	)
+
+	// For polynomial degree d = 4096 = 2^12:
+	// ω^(2^32) = ω^(2^20 * 2^12)
+	// Calculate ω^20 starting with root of unity of 2^32 degree
+	omega, _ := new(big.Int).SetString(
+		"10238227357739495823651030575849232062558860180284477541189508159991286009131", 10,
+	)
+	polynomialDegreeExp := int(math.Log2(float64(polynomialDegree)))
+	omegaExpExp := 32 // ω^(2^32)
+	for range omegaExpExp - polynomialDegreeExp {
+		omega.Mul(omega, omega)
+		omega.Mod(omega, modulus)
+	}
+
+	return omega, modulus
+}
+
+func evaluatePolynomial(
+	api frontend.API, interpolatingPoints []frontend.Variable, pointOfEvaluation frontend.Variable,
+) (evaluationValue frontend.Variable) {
+	startingOmega, _ := computeOmegaToI()
+	omegasToI := make([]emulated.Element[Fr], polynomialDegree)
+	omegaToI := big.NewInt(1)
+	for i := range polynomialDegree {
+		omegasToI[i] = emulated.ValueOf[Fr](omegaToI)
+		omegaToI.Mul(omegaToI, startingOmega)
+	}
+
+	field, err := emulated.NewField[Fr](api)
+	if err != nil {
+		return err
+	}
+
+	x := *field.FromBits(api.ToBinary(pointOfEvaluation)...)
+	w := make([]emulated.Element[Fr], len(interpolatingPoints))
+	for i, p := range interpolatingPoints {
+		w[i] = *field.FromBits(api.ToBinary(p)...)
+	}
+	y := barycentric.CalculateBarycentricFormula(field, omegasToI, w, x)
+
+	evaluationValue = api.FromBinary(field.ToBits(&y))
+	return
 }
 
 func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
-	// Hash private inputs.
-	// We keccak hash all input to save verification gas. Inputs are arranged as follows:
-	// StartIndex || PreRoot || PostRoot || IdComms[0] || IdComms[1] || ... || IdComms[batchSize-1]
-	//     32	  ||   256   ||   256    ||    256     ||    256     || ... ||     256 bits
-	var bits []frontend.Variable
+	api.AssertIsEqual(len(circuit.IdComms), polynomialDegree)
 
+	rootHash := getMerkleTreeRoot(api, circuit.IdComms)
+	api.AssertIsEqual(circuit.InputHash, rootHash)
+
+	var bits []frontend.Variable
 	// We convert all the inputs to the keccak hash to use big-endian (network) byte
 	// ordering so that it agrees with Solidity. This ensures that we don't have to
 	// perform the conversion inside the contract and hence save on gas.
-	bits_start := abstractor.Call1(api, ToReducedBigEndian{Variable: circuit.StartIndex, Size: 32})
-	bits = append(bits, bits_start...)
-
-	bits_pre := abstractor.Call1(api, ToReducedBigEndian{Variable: circuit.PreRoot, Size: 256})
-	bits = append(bits, bits_pre...)
-
-	bits_post := abstractor.Call1(api, ToReducedBigEndian{Variable: circuit.PostRoot, Size: 256})
-	bits = append(bits, bits_post...)
-
-	for i := 0; i < circuit.BatchSize; i++ {
-		bits_id := abstractor.Call1(api, ToReducedBigEndian{Variable: circuit.IdComms[i], Size: 256})
-		bits = append(bits, bits_id...)
+	bitsHash := abstractor.Call1(
+		api, ToReducedBigEndian{
+			Variable: circuit.InputHash,
+			Size:     32,
+		},
+	)
+	bits = append(bits, bitsHash...)
+	for c := range circuit.Commitment4844 {
+		bitsCommitment := abstractor.Call1(
+			api, ToReducedBigEndian{
+				Variable: c,
+				Size:     256,
+			},
+		)
+		bits = append(bits, bitsCommitment...)
 	}
 
+	// Compute Fiat-Shamir challenge of input hash and 4844 commitment
 	hash, err := keccak.Keccak256(api, bits)
 	if err != nil {
 		return err
 	}
-	sum := abstractor.Call(api, FromBinaryBigEndian{Variable: hash})
+	challenge := abstractor.Call(api, FromBinaryBigEndian{Variable: hash})
 
-	// The same endianness conversion has been performed in the hash generation
-	// externally, so we can safely assert their equality here.
-	api.AssertIsEqual(circuit.InputHash, sum)
+	// Calculate evaluation of polynomial interpolated by identities in the point x=challenge
+	evaluation := evaluatePolynomial(api, circuit.IdComms, challenge)
+	api.AssertIsEqual(circuit.ExpectedEvaluation, evaluation)
 
 	// Actual batch merkle proof verification.
-	root := abstractor.Call(api, InsertionProof{
-		StartIndex: circuit.StartIndex,
-		PreRoot:    circuit.PreRoot,
-		IdComms:    circuit.IdComms,
+	root := abstractor.Call(
+		api, InsertionProof{
+			StartIndex: circuit.StartIndex,
+			PreRoot:    circuit.PreRoot,
+			IdComms:    circuit.IdComms,
 
-		MerkleProofs: circuit.MerkleProofs,
+			MerkleProofs: circuit.MerkleProofs,
 
-		BatchSize: circuit.BatchSize,
-		Depth:     circuit.Depth,
-	})
+			BatchSize: circuit.BatchSize,
+			Depth:     circuit.Depth,
+		},
+	)
 
 	// Final root needs to match.
 	api.AssertIsEqual(root, circuit.PostRoot)
