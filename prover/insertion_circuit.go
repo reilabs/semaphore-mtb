@@ -19,17 +19,14 @@ import (
 type InsertionMbuCircuit struct {
 	// public inputs
 	InputHash frontend.Variable `gnark:",public"`
-	// TODO: Gonna assert this == Y=W(X)
-	//   W - identities interpolating polynomial
-	//   X - keccak256(input_hash, 4844 commitment)
-	ExpectedEvaluation frontend.Variable `gnark:",public"` // TODO is this Y from the line above
-	Commitment4844     []frontend.Variable `gnark:",public"` // TODO is it var or []var
+	ExpectedEvaluation frontend.Variable `gnark:",public"`
+	Commitment4844     []frontend.Variable `gnark:",public"`
 	StartIndex         frontend.Variable `gnark:",public"`
 	PreRoot            frontend.Variable `gnark:",public"`
 	PostRoot           frontend.Variable `gnark:",public"`
 
 	// private inputs
-	IdComms      []frontend.Variable   `gnark:"input"` // TODO is this alo a polynomial W?
+	IdComms      []frontend.Variable   `gnark:"input"`
 	MerkleProofs [][]frontend.Variable `gnark:"input"`
 
 	BatchSize int
@@ -65,7 +62,7 @@ type Fr = emulated.BLS12381Fr
 const polynomialDegree = 4096
 
 func computeOmegaToI() (*big.Int, *big.Int) {
-	// The function assumes BLS12381Fr field and a certain polynomial degree
+	// This function assumes BLS12381Fr field and polynomial degree 4096
 	modulus, _ := new(big.Int).SetString(
 		"52435875175126190479447740508185965837690552500527637822603658699938581184513", 10,
 	)
