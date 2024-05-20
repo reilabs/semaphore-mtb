@@ -20,7 +20,7 @@ type InsertionMbuCircuit struct {
 	// public inputs
 	InputHash frontend.Variable `gnark:",public"`
 	ExpectedEvaluation frontend.Variable `gnark:",public"`
-	Commitment4844     []frontend.Variable `gnark:",public"`
+	Commitment4844     frontend.Variable `gnark:",public"`
 	StartIndex         frontend.Variable `gnark:",public"`
 	PreRoot            frontend.Variable `gnark:",public"`
 	PostRoot           frontend.Variable `gnark:",public"`
@@ -127,15 +127,13 @@ func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
 		},
 	)
 	bits = append(bits, bitsHash...)
-	for c := range circuit.Commitment4844 {
-		bitsCommitment := abstractor.Call1(
-			api, ToReducedBigEndian{
-				Variable: c,
-				Size:     256,
-			},
-		)
-		bits = append(bits, bitsCommitment...)
-	}
+	bitsCommitment := abstractor.Call1(
+		api, ToReducedBigEndian{
+			Variable: circuit.Commitment4844,
+			Size:     256,
+		},
+	)
+	bits = append(bits, bitsCommitment...)
 
 	// Compute Fiat-Shamir challenge of input hash and 4844 commitment
 	hash, err := keccak.Keccak256(api, bits)
