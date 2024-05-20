@@ -5,27 +5,83 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/consensys/gnark/backend"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/test"
 	gokzg4844 "github.com/crate-crypto/go-kzg-4844"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/stretchr/testify/require"
+
+	poseidon "worldcoin/gnark-mbu/poseidon_native"
 )
 
 var ctx, _ = gokzg4844.NewContext4096Secure()
-var NumGoRoutines = 0
+const (
+	numGoRoutines = 0
+	treeDepth = 69 // TODO a sane value
+	batchSize = polynomialDegree // TODO a sane value
+)
 
 func TestInsertionCircuit(t *testing.T) {
-	ids := generateRandomIdentities(4096)
-	idsBytes := bigIntsToBytes(ids)
+	ids := generateRandomIdentities(polynomialDegree)
 
+	idsBytes := bigIntsToBytes(ids)
 	blob := bytesToBlob(idsBytes)
-	commitment, err := ctx.BlobToKZGCommitment(blob, NumGoRoutines)
+	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
 
-	// TODO is this necessary
-	proof, err := ctx.ComputeBlobKZGProof(blob, commitment, NumGoRoutines)
+	idComms := make([]frontend.Variable, polynomialDegree)
+	for i, id := range ids {
+		idComms[i] = id
+	}
+
+	merkleProofs := make([][]frontend.Variable, batchSize)
+	tree := poseidon.NewTree(treeDepth)
+	// TODO can this be done in more elegant way? this is conversion
+	//  of [][]big.Int to [][]frontend.Variable
+	for i, id := range ids {
+		update := tree.Update(i, id)
+		merkleProofs[i] = make([]frontend.Variable, len(update))
+		for j, v := range update {
+			merkleProofs[i][j] = v
+		}
+	}
+
+	var rootAndBigIntBytes []byte
+	root := tree.Root()
+	rootAndBigIntBytes = append(rootAndBigIntBytes, root.Bytes()...)
+	rootAndBigIntBytes = append(rootAndBigIntBytes, commitment[:]...)
+	inputHash := keccak256.Hash(rootAndBigIntBytes)
+
+	commitment4844 := bytesToBn254BigInt(commitment[:])
+
+	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(inputHash), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
 	require.NoError(t, err)
+	expectedEvaluation := bytesToBn254BigInt(proof[:])
+
+	circuit := InsertionMbuCircuit{}
+	assignment := InsertionMbuCircuit{
+		InputHash:          inputHash,  // TODO why it does not show error, types don't match
+		ExpectedEvaluation: expectedEvaluation,
+		Commitment4844:     commitment4844,
+		StartIndex:         0,    // TODO really?
+		PreRoot:            root, // TODO really?
+		PostRoot:           root, // TODO really?
+		IdComms:            idComms,
+		MerkleProofs:       merkleProofs,
+		BatchSize:          batchSize,
+		Depth:              treeDepth,
+	}
+
+	assert := test.NewAssert(t)
+	assert.CheckCircuit(
+		&circuit, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254),
+		test.WithValidAssignment(&assignment),
+	)
 }
 
 // generateRandomIdentities generates a slice of random big integers reduced modulo BN254 FR
@@ -58,18 +114,16 @@ func bigIntsToBytes(bigInts []big.Int) []byte {
 	return b
 }
 
-// bytesToBlob copies the contents of idsBytes into a Blob
+// bytesToBlob converts a slice of bytes into a KZG 4844 Blob
 func bytesToBlob(idsBytes []byte) *gokzg4844.Blob {
 	var blob gokzg4844.Blob
 	copy(blob[:], idsBytes)
 	return &blob
 }
 
-// bytesToBigIntModGNARKBN254 converts a slice of bytes to a *big.Int and reduces it by the BN254 modulus using gnark-crypto
-func bytesToBigInt(b []byte) *big.Int {
+// bytesToBn254BigInt converts a slice of bytes to a *big.Int and reduces it by BN254 modulus
+func bytesToBn254BigInt(b []byte) *big.Int {
 	n := new(big.Int).SetBytes(b)
-	// Get the modulus from gnark-crypto's BN254 field
 	modulus := bn254fr.Modulus()
-	// Reduce n modulo BN254 prime using gnark-crypto's modulus
 	return n.Mod(n, modulus)
 }
