@@ -42,7 +42,7 @@ type InsertionMbuCircuit struct {
 // At the end or the process the function returns the root value of such constructed Merkle Tree.
 func getMerkleTreeRoot(api frontend.API, input []frontend.Variable) frontend.Variable {
 	temp := input[:]
-	for len(input) > 1 {
+	for len(temp) > 1 {
 		newInput := make([]frontend.Variable, len(temp)/2)
 		for i := range newInput {
 			newInput[i] = abstractor.Call(
