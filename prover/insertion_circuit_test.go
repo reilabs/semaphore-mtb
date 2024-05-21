@@ -64,7 +64,17 @@ func TestInsertionCircuit(t *testing.T) {
 
 	commitment4844 := bytesToBn254BigInt(commitment[:])
 
-	circuit := InsertionMbuCircuit{}
+	proofs := make([][]frontend.Variable, batchSize)
+	for i := 0; i < int(batchSize); i++ {
+		proofs[i] = make([]frontend.Variable, treeDepth)
+	}
+
+	circuit := InsertionMbuCircuit{
+		IdComms:            make([]frontend.Variable, batchSize),
+		MerkleProofs:       proofs,
+		BatchSize:          batchSize,
+		Depth:              treeDepth,
+	}
 	assignment := InsertionMbuCircuit{
 		InputHash:          inputHash,  // TODO why it does not show error, types don't match
 		ExpectedEvaluation: expectedEvaluation,
