@@ -49,19 +49,20 @@ func TestInsertionCircuit(t *testing.T) {
 		}
 	}
 
-	var rootAndBigIntBytes []byte
+	var rootAndCommitment []byte
 	root := tree.Root()
-	rootAndBigIntBytes = append(rootAndBigIntBytes, root.Bytes()...)
-	rootAndBigIntBytes = append(rootAndBigIntBytes, commitment[:]...)
-	inputHash := keccak256.Hash(rootAndBigIntBytes)
-
-	commitment4844 := bytesToBn254BigInt(commitment[:])
+	rootAndCommitment = append(rootAndCommitment, root.Bytes()...)
+	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
+	inputHash := keccak256.Hash(rootAndCommitment)
+	inputHash = bytesToBn254BigInt(inputHash).Bytes()
 
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(inputHash), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
 	require.NoError(t, err)
 	expectedEvaluation := bytesToBn254BigInt(proof[:])
+
+	commitment4844 := bytesToBn254BigInt(commitment[:])
 
 	circuit := InsertionMbuCircuit{}
 	assignment := InsertionMbuCircuit{
