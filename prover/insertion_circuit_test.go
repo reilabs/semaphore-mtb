@@ -53,10 +53,10 @@ func TestInsertionCircuit(t *testing.T) {
 	root := tree.Root()
 	rootAndCommitment = append(rootAndCommitment, root.Bytes()...)
 	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
-	inputHash := keccak256.Hash(rootAndCommitment)
-	inputHash = bytesToBn254BigInt(inputHash).Bytes()
+	challenge := keccak256.Hash(rootAndCommitment)
+	challenge = bytesToBn254BigInt(challenge).Bytes()
 
-	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(inputHash), numGoRoutines)
+	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
 	//require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestInsertionCircuit(t *testing.T) {
 		Depth:              treeDepth,
 	}
 	assignment := InsertionMbuCircuit{
-		InputHash:          inputHash,  // TODO why it does not show error, types don't match
+		InputHash:          root,
 		ExpectedEvaluation: expectedEvaluation,
 		Commitment4844:     commitment4844,
 		StartIndex:         0,    // TODO really?
