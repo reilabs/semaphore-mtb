@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+
 	"worldcoin/gnark-mbu/logging"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -74,7 +75,6 @@ func BuildR1CSInsertion(treeDepth uint32, batchSize uint32) (constraint.Constrai
 	}
 	circuit := InsertionMbuCircuit{
 		Depth:        int(treeDepth),
-		BatchSize:    int(batchSize),
 		IdComms:      make([]frontend.Variable, batchSize),
 		MerkleProofs: proofs,
 	}

@@ -17,18 +17,17 @@ func ExtractLean(treeDepth uint32, batchSize uint32) (string, error) {
 
 	deletion := DeletionMbuCircuit{
 		DeletionIndices: make([]frontend.Variable, batchSize),
-		IdComms: make([]frontend.Variable, batchSize),
-		MerkleProofs: proofs,
+		IdComms:         make([]frontend.Variable, batchSize),
+		MerkleProofs:    proofs,
 
 		BatchSize: int(batchSize),
-		Depth: int(treeDepth),
+		Depth:     int(treeDepth),
 	}
 
 	insertion := InsertionMbuCircuit{
-		IdComms: make([]frontend.Variable, batchSize),
+		IdComms:      make([]frontend.Variable, batchSize),
 		MerkleProofs: proofs,
 
-		BatchSize: int(batchSize),
 		Depth: int(treeDepth),
 	}
 

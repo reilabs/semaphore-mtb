@@ -60,7 +60,7 @@ func TestInsertionCircuit(t *testing.T) {
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
-	//require.NoError(t, err)
+	//require.NoError(t, err) // TODO see why it fails
 	expectedEvaluation := bytesToBn254BigInt(proof[:])
 
 	commitment4844 := bytesToBn254BigInt(commitment[:])
@@ -73,7 +73,6 @@ func TestInsertionCircuit(t *testing.T) {
 	circuit := InsertionMbuCircuit{
 		IdComms:            make([]frontend.Variable, batchSize),
 		MerkleProofs:       proofs,
-		BatchSize:          batchSize,
 		Depth:              treeDepth,
 	}
 	for i := 0; i < batchSize; i++ {
@@ -88,7 +87,6 @@ func TestInsertionCircuit(t *testing.T) {
 		PostRoot:           root, // TODO really?
 		IdComms:            idComms,
 		MerkleProofs:       merkleProofs,
-		BatchSize:          batchSize,
 		Depth:              treeDepth,
 	}
 

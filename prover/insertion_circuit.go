@@ -29,7 +29,6 @@ type InsertionMbuCircuit struct {
 	IdComms      []frontend.Variable   `gnark:"input"`
 	MerkleProofs [][]frontend.Variable `gnark:"input"`
 
-	BatchSize int
 	Depth     int
 	// TODO should these guys be here?
 	// Omega            big.Int // ω
@@ -155,7 +154,6 @@ func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
 
 			MerkleProofs: circuit.MerkleProofs,
 
-			BatchSize: circuit.BatchSize,
 			Depth:     circuit.Depth,
 		},
 	)
@@ -173,7 +171,6 @@ func ImportInsertionSetup(treeDepth uint32, batchSize uint32, pkPath string, vkP
 	}
 	circuit := InsertionMbuCircuit{
 		Depth:        int(treeDepth),
-		BatchSize:    int(batchSize),
 		IdComms:      make([]frontend.Variable, batchSize),
 		MerkleProofs: proofs,
 	}
