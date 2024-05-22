@@ -67,6 +67,9 @@ func TestInsertionCircuit(t *testing.T) {
 		BatchSize:          batchSize,
 		Depth:              treeDepth,
 	}
+	for i := 0; i < batchSize; i++ {
+		circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
+	}
 	assignment := InsertionMbuCircuit{
 		InputHash:          params.InputHash,
 		ExpectedEvaluation: expectedEvaluation,
