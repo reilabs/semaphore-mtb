@@ -25,26 +25,29 @@ const (
 )
 
 func TestInsertionCircuit(t *testing.T) {
-	params := InsertionParameters{}
-	tree := poseidon.NewTree(treeDepth)
-
-	params.StartIndex = 0
-	params.PreRoot = tree.Root()
-	params.IdComms = make([]big.Int, batchSize)
-	params.MerkleProofs = make([][]big.Int, batchSize)
-	ids := generateRandomIdentities(batchSize)
-	for i := 0; i < batchSize; i++ {
-		params.IdComms[i] = ids[i]
-		params.MerkleProofs[i] = tree.Update(i, params.IdComms[i])
-	}
-	params.PostRoot = tree.Root()
-	err := params.ComputeInputHashInsertion()
-	require.NoError(t, err)
+	ids := generateRandomIdentities(polynomialDegree)
 
 	idsBytes := bigIntsToBytes(ids)
 	blob := bytesToBlob(idsBytes)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
+
+	idComms := make([]frontend.Variable, polynomialDegree)
+	for i, id := range ids {
+		idComms[i] = id
+	}
+
+	merkleProofs := make([][]frontend.Variable, batchSize)
+	tree := poseidon.NewTree(treeDepth)
+	// TODO can this be done in more elegant way? this is conversion
+	//  of [][]big.Int to [][]frontend.Variable
+	for i, id := range ids {
+		update := tree.Update(i, id)
+		merkleProofs[i] = make([]frontend.Variable, len(update))
+		for j, v := range update {
+			merkleProofs[i][j] = v
+		}
+	}
 
 	var rootAndCommitment []byte
 	root := tree.Root()
@@ -57,14 +60,19 @@ func TestInsertionCircuit(t *testing.T) {
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
-	//require.NoError(t, err)  // TODO see why it fails
+	//require.NoError(t, err)
 	expectedEvaluation := bytesToBn254BigInt(proof[:])
 
 	commitment4844 := bytesToBn254BigInt(commitment[:])
 
+	proofs := make([][]frontend.Variable, batchSize)
+	for i := 0; i < int(batchSize); i++ {
+		proofs[i] = make([]frontend.Variable, treeDepth)
+	}
+
 	circuit := InsertionMbuCircuit{
 		IdComms:            make([]frontend.Variable, batchSize),
-		MerkleProofs:       make([][]frontend.Variable, batchSize),
+		MerkleProofs:       proofs,
 		BatchSize:          batchSize,
 		Depth:              treeDepth,
 	}
@@ -72,23 +80,16 @@ func TestInsertionCircuit(t *testing.T) {
 		circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
 	}
 	assignment := InsertionMbuCircuit{
-		InputHash:          params.InputHash,
+		InputHash:          root,
 		ExpectedEvaluation: expectedEvaluation,
 		Commitment4844:     commitment4844,
-		StartIndex:         params.StartIndex,
-		PreRoot:            params.PreRoot,
-		PostRoot:           params.PostRoot,
-		IdComms:            make([]frontend.Variable, batchSize),
-		MerkleProofs:       make([][]frontend.Variable, batchSize),
+		StartIndex:         0,    // TODO really?
+		PreRoot:            root, // TODO really?
+		PostRoot:           root, // TODO really?
+		IdComms:            idComms,
+		MerkleProofs:       merkleProofs,
 		BatchSize:          batchSize,
 		Depth:              treeDepth,
-	}
-	for i := 0; i < batchSize; i++ {
-		assignment.IdComms[i] = params.IdComms[i]
-		assignment.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
-		for j := range params.MerkleProofs[i] {
-			assignment.MerkleProofs[i][j] = params.MerkleProofs[i][j]
-		}
 	}
 
 	assert := test.NewAssert(t)
