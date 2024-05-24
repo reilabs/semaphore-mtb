@@ -54,9 +54,15 @@ func TestInsertionCircuit(t *testing.T) {
 	rootAndCommitment = append(rootAndCommitment, root.Bytes()...)
 	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
 	challenge := keccak256.Hash(rootAndCommitment)
+	if len(challenge) < 32 {
+		// Make sure challenge is 32-byte-long so ComputeKZGProof is happy
+		paddedChallenge := make([]byte, 32)
+		copy(paddedChallenge[32-len(challenge):], challenge)
+		challenge = paddedChallenge
+	}
+
 	challenge = bytesToBn254BigInt(challenge).Bytes()
 
-	// TODO this conversion can fail, challenge can be 31-bytes long, it happened at least once
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
