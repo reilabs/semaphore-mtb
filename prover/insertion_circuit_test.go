@@ -20,37 +20,27 @@ import (
 var ctx, _ = gokzg4844.NewContext4096Secure()
 const (
 	numGoRoutines = 0
-	treeDepth = 69 // TODO a sane value
+	smallTreeDepth = 12 // TODO a sane value
+	bigTreeDepth = 420 // TODO a sane value
 	batchSize = polynomialDegree // TODO a sane value
+	idCommsCount = 10000 // In reality, it's about 1 B
 )
 
 func TestInsertionCircuit(t *testing.T) {
-	ids := generateRandomIdentities(polynomialDegree)
+	incomingIds := generateRandomIdentities(polynomialDegree)
 
-	idsBytes := bigIntsToBytes(ids)
+	idsBytes := bigIntsToBytes(incomingIds)
 	blob := bytesToBlob(idsBytes)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
 
-	idComms := make([]frontend.Variable, polynomialDegree)
-	for i, id := range ids {
-		idComms[i] = id
+	smallTree := poseidon.NewTree(smallTreeDepth)
+	for i, id := range incomingIds {
+		_ = smallTree.Update(i, id)
 	}
-
-	merkleProofs := make([][]frontend.Variable, batchSize)
-	tree := poseidon.NewTree(treeDepth)
-	// TODO can this be done in more elegant way? this is conversion
-	//  of [][]big.Int to [][]frontend.Variable
-	for i, id := range ids {
-		update := tree.Update(i, id)
-		merkleProofs[i] = make([]frontend.Variable, len(update))
-		for j, v := range update {
-			merkleProofs[i][j] = v
-		}
-	}
+	root := smallTree.Root()
 
 	var rootAndCommitment []byte
-	root := tree.Root()
 	rootAndCommitment = append(rootAndCommitment, root.Bytes()...)
 	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
 	challenge := keccak256.Hash(rootAndCommitment)
@@ -60,7 +50,6 @@ func TestInsertionCircuit(t *testing.T) {
 		copy(paddedChallenge[32-len(challenge):], challenge)
 		challenge = paddedChallenge
 	}
-
 	challenge = bytesToBn254BigInt(challenge).Bytes()
 
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
@@ -71,29 +60,40 @@ func TestInsertionCircuit(t *testing.T) {
 
 	commitment4844 := bytesToBn254BigInt(commitment[:])
 
-	proofs := make([][]frontend.Variable, batchSize)
-	for i := 0; i < int(batchSize); i++ {
-		proofs[i] = make([]frontend.Variable, treeDepth)
+	existingIds := generateRandomIdentities(idCommsCount)
+	bigTree := poseidon.NewTree(bigTreeDepth)
+	preRoot := bigTree.Root()
+	idComms := make([]frontend.Variable, len(existingIds))
+	merkleProofs := make([][]frontend.Variable, len(existingIds))
+	for i, id := range existingIds {
+		idComms[i] = id
+		update := bigTree.Update(i, id)
+		merkleProofs[i] = make([]frontend.Variable, len(update))
+		for j, v := range update {
+			merkleProofs[i][j] = v
+		}
 	}
+	postRoot := bigTree.Root()
 
 	circuit := InsertionMbuCircuit{
-		IdComms:            make([]frontend.Variable, batchSize),
-		MerkleProofs:       proofs,
-		Depth:              treeDepth,
+		IdComms:            make([]frontend.Variable, len(existingIds)),
+		MerkleProofs:       make([][]frontend.Variable, len(existingIds)),
+		Depth:              bigTreeDepth,
 	}
-	for i := 0; i < batchSize; i++ {
-		circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
+	for i := range circuit.MerkleProofs {
+		circuit.MerkleProofs[i] = make([]frontend.Variable, bigTreeDepth)
 	}
+
 	assignment := InsertionMbuCircuit{
 		InputHash:          root,
 		ExpectedEvaluation: expectedEvaluation,
 		Commitment4844:     commitment4844,
 		StartIndex:         0,    // TODO really?
-		PreRoot:            root, // TODO really?
-		PostRoot:           root, // TODO really?
+		PreRoot:            preRoot,
+		PostRoot:           postRoot,
 		IdComms:            idComms,
 		MerkleProofs:       merkleProofs,
-		Depth:              treeDepth,
+		Depth:              bigTreeDepth,
 	}
 
 	assert := test.NewAssert(t)
