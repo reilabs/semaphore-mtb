@@ -97,14 +97,18 @@ func TestInsertionCircuit(t *testing.T) {
 	)
 }
 
-// generateRandomIdentities generates a slice of random big integers reduced modulo BN254 FR
-// of the given count.
+// generateRandomIdentities generates a slice of random big integers reduced modulo BN254 FR,
+// but not smaller than modulo/4, of the given count.
 func generateRandomIdentities(count int) []big.Int {
 	ids := make([]big.Int, count)
 	modulus := bn254fr.Modulus()
+	minVal := new(big.Int).Div(modulus, big.NewInt(4)) // modulus / 4
 
 	for i := range ids {
 		n, _ := rand.Int(rand.Reader, modulus)
+		if n.Cmp(minVal) < 0 {
+			n = minVal
+		}
 		ids[i] = *n
 	}
 
