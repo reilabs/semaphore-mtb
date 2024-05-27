@@ -110,8 +110,6 @@ func evaluatePolynomial(
 }
 
 func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
-	//api.AssertIsEqual(len(circuit.IdComms), polynomialDegree)
-
 	rootHash := getMerkleTreeRoot(api, circuit.IdComms)
 	api.AssertIsEqual(circuit.InputHash, rootHash)
 
