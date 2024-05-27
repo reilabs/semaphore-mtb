@@ -19,6 +19,7 @@ import (
 )
 
 var ctx, _ = gokzg4844.NewContext4096Secure()
+
 const (
 	numGoRoutines        = 0
 	exitsingUsersCount   = 16384
@@ -44,13 +45,13 @@ func TestInsertionCircuit(t *testing.T) {
 	rootAndCommitment = append(rootAndCommitment, incomingIdsTreeRoot.Bytes()...)
 	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
 	challenge := keccak256.Hash(rootAndCommitment)
+	challenge = bytesToBn254BigInt(challenge).Bytes()
 	if len(challenge) < 32 {
 		// Make sure challenge is 32-byte-long so ComputeKZGProof is happy
 		paddedChallenge := make([]byte, 32)
 		copy(paddedChallenge[32-len(challenge):], challenge)
 		challenge = paddedChallenge
 	}
-	challenge = bytesToBn254BigInt(challenge).Bytes()
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
