@@ -105,7 +105,7 @@ func evaluatePolynomial(
 	}
 	y := barycentric.CalculateBarycentricFormula(field, omegasToI, w, x)
 
-	evaluationValue = api.FromBinary(field.ToBits(&y))
+	evaluationValue = api.FromBinary(field.ToBits(&y)...)
 	return
 }
 
