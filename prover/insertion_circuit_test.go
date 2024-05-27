@@ -2,6 +2,7 @@ package prover
 
 import (
 	"crypto/rand"
+	"math"
 	"math/big"
 	"testing"
 
@@ -19,29 +20,28 @@ import (
 
 var ctx, _ = gokzg4844.NewContext4096Secure()
 const (
-	numGoRoutines = 0
-	smallTreeDepth = 12 // TODO a sane value
-	bigTreeDepth = 420 // TODO a sane value
-	batchSize = polynomialDegree // TODO a sane value
-	idCommsCount = 10000 // In reality, it's about 1 B
+	numGoRoutines        = 0
+	exitsingUsersCount   = 16384
+	incomingUsersCount = polynomialDegree
 )
 
 func TestInsertionCircuit(t *testing.T) {
-	incomingIds := generateRandomIdentities(polynomialDegree)
+	incomingIds := generateRandomIdentities(incomingUsersCount)
+	smallTree := poseidon.NewTree(treeDepth(incomingUsersCount))
+	idComms := make([]frontend.Variable, incomingUsersCount)
+	for i, id := range incomingIds {
+		idComms[i] = id
+		_ = smallTree.Update(i, id)
+	}
+	incomingIdsTreeRoot := smallTree.Root()
 
 	idsBytes := bigIntsToBytes(incomingIds)
 	blob := bytesToBlob(idsBytes)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
 
-	smallTree := poseidon.NewTree(smallTreeDepth)
-	for i, id := range incomingIds {
-		_ = smallTree.Update(i, id)
-	}
-	root := smallTree.Root()
-
 	var rootAndCommitment []byte
-	rootAndCommitment = append(rootAndCommitment, root.Bytes()...)
+	rootAndCommitment = append(rootAndCommitment, incomingIdsTreeRoot.Bytes()...)
 	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
 	challenge := keccak256.Hash(rootAndCommitment)
 	if len(challenge) < 32 {
@@ -51,7 +51,6 @@ func TestInsertionCircuit(t *testing.T) {
 		challenge = paddedChallenge
 	}
 	challenge = bytesToBn254BigInt(challenge).Bytes()
-
 	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
 	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
@@ -60,13 +59,12 @@ func TestInsertionCircuit(t *testing.T) {
 
 	commitment4844 := bytesToBn254BigInt(commitment[:])
 
-	existingIds := generateRandomIdentities(idCommsCount)
-	bigTree := poseidon.NewTree(bigTreeDepth)
+	existingIdsTreeDepth := treeDepth(exitsingUsersCount)
+	existingIds := generateRandomIdentities(exitsingUsersCount)
+	bigTree := poseidon.NewTree(existingIdsTreeDepth)
 	preRoot := bigTree.Root()
-	idComms := make([]frontend.Variable, len(existingIds))
-	merkleProofs := make([][]frontend.Variable, len(existingIds))
+	merkleProofs := make([][]frontend.Variable, exitsingUsersCount)
 	for i, id := range existingIds {
-		idComms[i] = id
 		update := bigTree.Update(i, id)
 		merkleProofs[i] = make([]frontend.Variable, len(update))
 		for j, v := range update {
@@ -76,24 +74,24 @@ func TestInsertionCircuit(t *testing.T) {
 	postRoot := bigTree.Root()
 
 	circuit := InsertionMbuCircuit{
-		IdComms:            make([]frontend.Variable, len(existingIds)),
-		MerkleProofs:       make([][]frontend.Variable, len(existingIds)),
-		Depth:              bigTreeDepth,
+		IdComms:      make([]frontend.Variable, incomingUsersCount),
+		MerkleProofs: make([][]frontend.Variable, exitsingUsersCount),
+		Depth:        existingIdsTreeDepth,
 	}
-	for i := range circuit.MerkleProofs {
-		circuit.MerkleProofs[i] = make([]frontend.Variable, bigTreeDepth)
+	for i, mp := range merkleProofs {
+		circuit.MerkleProofs[i] = make([]frontend.Variable, len(mp))
 	}
 
 	assignment := InsertionMbuCircuit{
-		InputHash:          root,
+		InputHash:          incomingIdsTreeRoot,
 		ExpectedEvaluation: expectedEvaluation,
 		Commitment4844:     commitment4844,
-		StartIndex:         0,    // TODO really?
+		StartIndex:         exitsingUsersCount,
 		PreRoot:            preRoot,
 		PostRoot:           postRoot,
-		IdComms:            idComms,
-		MerkleProofs:       merkleProofs,
-		Depth:              bigTreeDepth,
+		IdComms:      idComms,
+		MerkleProofs: merkleProofs,
+		Depth:        existingIdsTreeDepth,
 	}
 
 	assert := test.NewAssert(t)
@@ -149,4 +147,13 @@ func bytesToBn254BigInt(b []byte) *big.Int {
 	n := new(big.Int).SetBytes(b)
 	modulus := bn254fr.Modulus()
 	return n.Mod(n, modulus)
+}
+
+// treeDepth calculates the depth of a binary tree containing the given number of leaves
+func treeDepth(leavesCount int) (height int) {
+	if leavesCount <= 0 {
+		return 0
+	}
+	height = int(math.Ceil(math.Log2(float64(leavesCount))))
+	return
 }
