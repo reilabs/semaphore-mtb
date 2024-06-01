@@ -34,8 +34,8 @@ func TestInsertionCircuit(t *testing.T) {
 		idComms[i] = id
 		_ = smallTree.Update(i, id)
 	}
-	smallTreeRoot := smallTree.Root()
-	incomingIdsTreeRoot := bytesToBn254BigInt(smallTreeRoot.Bytes())
+	incomingIdsTreeRoot := smallTree.Root()
+	incomingIdsTreeRoot = *bytesToBn254BigInt(incomingIdsTreeRoot.Bytes())
 
 	idsBytes := bigIntsToBytes(incomingIds)
 	blob := bytesToBlob(idsBytes)
