@@ -41,6 +41,7 @@ func TestInsertionCircuit(t *testing.T) {
 	blob := bytesToBlob(idsBytes)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
+	commitment4844 := bytesToBn254BigInt(commitment[:])
 
 	var rootAndCommitment []byte
 	rootAndCommitment = append(rootAndCommitment, incomingIdsTreeRoot.Bytes()...)
@@ -58,8 +59,6 @@ func TestInsertionCircuit(t *testing.T) {
 	err = ctx.VerifyKZGProof(commitment, [32]byte(challenge), evaluation, proof)
 	require.NoError(t, err)
 	expectedEvaluation := bytesToBn254BigInt(evaluation[:])
-
-	commitment4844 := bytesToBn254BigInt(commitment[:])
 
 	existingIdsTreeDepth := treeDepth(exitsingUsersCount)
 	existingIds := generateRandomIdentities(exitsingUsersCount)
