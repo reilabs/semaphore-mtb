@@ -21,8 +21,8 @@ import (
 var ctx, _ = gokzg4844.NewContext4096Secure()
 
 const (
-	numGoRoutines        = 0
-	exitsingUsersCount   = 16384
+	numGoRoutines      = 0
+	existingUsersCount = 16384
 	incomingUsersCount = polynomialDegree
 )
 
@@ -60,11 +60,11 @@ func TestInsertionCircuit(t *testing.T) {
 	require.NoError(t, err)
 	expectedEvaluation := bytesToBn254BigInt(evaluation[:])
 
-	existingIdsTreeDepth := treeDepth(exitsingUsersCount)
-	existingIds := generateRandomIdentities(exitsingUsersCount)
+	existingIdsTreeDepth := treeDepth(existingUsersCount)
+	existingIds := generateRandomIdentities(existingUsersCount)
 	bigTree := poseidon.NewTree(existingIdsTreeDepth)
 	preRoot := bigTree.Root()
-	merkleProofs := make([][]frontend.Variable, exitsingUsersCount)
+	merkleProofs := make([][]frontend.Variable, existingUsersCount)
 	for i, id := range existingIds {
 		update := bigTree.Update(i, id)
 		merkleProofs[i] = make([]frontend.Variable, len(update))
@@ -76,7 +76,7 @@ func TestInsertionCircuit(t *testing.T) {
 
 	circuit := InsertionMbuCircuit{
 		IdComms:      make([]frontend.Variable, incomingUsersCount),
-		MerkleProofs: make([][]frontend.Variable, exitsingUsersCount),
+		MerkleProofs: make([][]frontend.Variable, existingUsersCount),
 		Depth:        existingIdsTreeDepth,
 	}
 	for i, mp := range merkleProofs {
@@ -87,12 +87,12 @@ func TestInsertionCircuit(t *testing.T) {
 		InputHash:          incomingIdsTreeRoot,
 		ExpectedEvaluation: expectedEvaluation,
 		Commitment4844:     commitment4844,
-		StartIndex:         exitsingUsersCount,
+		StartIndex:         existingUsersCount,
 		PreRoot:            preRoot,
 		PostRoot:           postRoot,
-		IdComms:      idComms,
-		MerkleProofs: merkleProofs,
-		Depth:        existingIdsTreeDepth,
+		IdComms:            idComms,
+		MerkleProofs:       merkleProofs,
+		Depth:              existingIdsTreeDepth,
 	}
 
 	assert := test.NewAssert(t)
