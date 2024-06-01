@@ -53,11 +53,11 @@ func TestInsertionCircuit(t *testing.T) {
 		copy(paddedChallenge[32-len(challenge):], challenge)
 		challenge = paddedChallenge
 	}
-	proof, _, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
+	proof, evaluation, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
 	require.NoError(t, err)
-	err = ctx.VerifyBlobKZGProof(blob, commitment, proof)
-	//require.NoError(t, err) // TODO see why it fails
-	expectedEvaluation := bytesToBn254BigInt(proof[:])
+	err = ctx.VerifyKZGProof(commitment, [32]byte(challenge), evaluation, proof)
+	require.NoError(t, err)
+	expectedEvaluation := bytesToBn254BigInt(evaluation[:])
 
 	commitment4844 := bytesToBn254BigInt(commitment[:])
 
