@@ -120,7 +120,7 @@ func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
 	bitsHash := abstractor.Call1(
 		api, ToReducedBigEndian{
 			Variable: circuit.InputHash,
-			Size:     253,  // TODO make sure this length is always right
+			Size:     256,
 		},
 	)
 	bits = append(bits, bitsHash...)
