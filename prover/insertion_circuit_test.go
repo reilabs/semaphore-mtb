@@ -37,8 +37,7 @@ func TestInsertionCircuit(t *testing.T) {
 	incomingIdsTreeRoot := smallTree.Root()
 	incomingIdsTreeRoot = *bytesToBn254BigInt(incomingIdsTreeRoot.Bytes())
 
-	idsBytes := bigIntsToBytes(incomingIds)
-	blob := bytesToBlob(idsBytes)
+	blob := identitiesToBlob(incomingIds)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
 	commitment4844 := bytesToBn254BigInt(commitment[:])
@@ -120,12 +119,13 @@ func generateRandomIdentities(count int) []big.Int {
 	return ids
 }
 
-// bigIntsToBytes converts a slice of big.Int into a single slice of bytes.
-// Each big.Int is converted to its byte representation and padded to 32 bytes with leading zeros, if necessary.
-func bigIntsToBytes(bigInts []big.Int) []byte {
+// identitiesToBlob converts a slice of big.Int into a KZG 4844 Blob.
+// Each big.Int is converted to its byte representation, padded to 32 bytes with leading zeros if necessary,
+// and then the bytes are assembled into a Blob.
+func identitiesToBlob(ids []big.Int) *gokzg4844.Blob {
 	var b []byte
-	for _, bigInt := range bigInts {
-		value := bigInt.Bytes()
+	for _, id := range ids {
+		value := id.Bytes()
 		// Pad to 32 bytes with zeros
 		if len(value) < 32 {
 			pad := make([]byte, 32-len(value))
@@ -133,13 +133,9 @@ func bigIntsToBytes(bigInts []big.Int) []byte {
 		}
 		b = append(b, value...)
 	}
-	return b
-}
 
-// bytesToBlob converts a slice of bytes into a KZG 4844 Blob
-func bytesToBlob(idsBytes []byte) *gokzg4844.Blob {
 	var blob gokzg4844.Blob
-	copy(blob[:], idsBytes)
+	copy(blob[:], b)
 	return &blob
 }
 
