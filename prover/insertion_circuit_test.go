@@ -110,18 +110,14 @@ func generateRandomIdentities(count int) []big.Int {
 }
 
 // identitiesToBlob converts a slice of big.Int into a KZG 4844 Blob.
-// Each big.Int is converted to its byte representation, padded to 32 bytes with leading zeros if necessary,
-// and then the bytes are assembled into a Blob.
 func identitiesToBlob(ids []big.Int) *gokzg4844.Blob {
+	if len(ids) > gokzg4844.ScalarsPerBlob {
+		panic("too many identities for a blob")
+	}
+
 	var b []byte
 	for _, id := range ids {
-		value := id.Bytes()
-		// Pad to 32 bytes with zeros
-		if len(value) < 32 {
-			pad := make([]byte, 32-len(value))
-			value = append(pad, value...)
-		}
-		b = append(b, value...)
+		b = append(b, id.Bytes()...)
 	}
 
 	var blob gokzg4844.Blob
