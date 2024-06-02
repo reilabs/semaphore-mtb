@@ -40,22 +40,12 @@ func TestInsertionCircuit(t *testing.T) {
 	blob := identitiesToBlob(incomingIds)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
-	commitment4844 := bytesToBn254BigInt(commitment[:])
+	commitment4844 := *bytesToBn254BigInt(commitment[:])
 
-	var rootAndCommitment []byte
-	rootAndCommitment = append(rootAndCommitment, incomingIdsTreeRoot.Bytes()...)
-	rootAndCommitment = append(rootAndCommitment, commitment[:]...)
-	challenge := keccak256.Hash(rootAndCommitment)
-	challenge = bytesToBn254BigInt(challenge).Bytes()
-	if len(challenge) < 32 {
-		// Make sure challenge is 32-byte-long so ComputeKZGProof is happy
-		paddedChallenge := make([]byte, 32)
-		copy(paddedChallenge[32-len(challenge):], challenge)
-		challenge = paddedChallenge
-	}
-	proof, evaluation, err := ctx.ComputeKZGProof(blob, [32]byte(challenge), numGoRoutines)
+	challenge := bigIntsToChallenge([]big.Int{incomingIdsTreeRoot, commitment4844})
+	proof, evaluation, err := ctx.ComputeKZGProof(blob, challenge, numGoRoutines)
 	require.NoError(t, err)
-	err = ctx.VerifyKZGProof(commitment, [32]byte(challenge), evaluation, proof)
+	err = ctx.VerifyKZGProof(commitment, challenge, evaluation, proof)
 	require.NoError(t, err)
 	expectedEvaluation := bytesToBn254BigInt(evaluation[:])
 
@@ -145,6 +135,23 @@ func bytesToBn254BigInt(b []byte) *big.Int {
 	modulus := bn254fr.Modulus()
 	return n.Mod(n, modulus)
 }
+
+// bigIntsToChallenge converts input bit.Ints to a challenge for a proof of knowledge of a polynomial.
+// The challenge is defined as a gokzg4844.Scalar of a keccak256 hash of all input big.Ints reduced
+// by BN254 modulus.
+func bigIntsToChallenge(input []big.Int) (challenge gokzg4844.Scalar) {
+	var inputBytes []byte
+	for _, i := range input {
+		inputBytes = append(inputBytes, i.Bytes()...)
+	}
+
+	// Reduce keccak because gokzg4844 API expects that
+	hashBytes := bytesToBn254BigInt(keccak256.Hash(inputBytes)).Bytes()
+
+	copy(challenge[:], hashBytes)
+	return challenge
+}
+
 
 // treeDepth calculates the depth of a binary tree containing the given number of leaves
 func treeDepth(leavesCount int) (height int) {
