@@ -18,8 +18,6 @@ import (
 	poseidon "worldcoin/gnark-mbu/poseidon_native"
 )
 
-var ctx, _ = gokzg4844.NewContext4096Secure()
-
 const (
 	numGoRoutines      = 0
 	existingUsersCount = 16384
@@ -37,6 +35,8 @@ func TestInsertionCircuit(t *testing.T) {
 	incomingIdsTreeRoot := smallTree.Root()
 	incomingIdsTreeRoot = *bytesToBn254BigInt(incomingIdsTreeRoot.Bytes())
 
+	ctx, err := gokzg4844.NewContext4096Secure()
+	require.NoError(t, err)
 	blob := identitiesToBlob(incomingIds)
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	require.NoError(t, err)
