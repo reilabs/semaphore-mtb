@@ -138,7 +138,8 @@ func bytesToBn254BigInt(b []byte) *big.Int {
 func bigIntsToChallenge(input []big.Int) (challenge gokzg4844.Scalar) {
 	var inputBytes []byte
 	for _, i := range input {
-		inputBytes = append(inputBytes, i.Bytes()...)
+		temp := make([]byte, 32)
+		inputBytes = append(inputBytes, i.FillBytes(temp)...)
 	}
 
 	// Reduce keccak because gokzg4844 API expects that
