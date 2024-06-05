@@ -47,7 +47,6 @@ func TestInsertionCircuit(t *testing.T) {
 	require.NoError(t, err)
 	err = ctx.VerifyKZGProof(commitment, challenge, evaluation, proof)
 	require.NoError(t, err)
-	expectedEvaluation := bytesToBn254BigInt(evaluation[:])
 
 	existingIdsTreeDepth := treeDepth(existingUsersCount)
 	existingIds := generateRandomIdentities(existingUsersCount)
@@ -74,7 +73,7 @@ func TestInsertionCircuit(t *testing.T) {
 
 	assignment := InsertionMbuCircuit{
 		InputHash:          incomingIdsTreeRoot,
-		ExpectedEvaluation: expectedEvaluation,
+		ExpectedEvaluation: evaluation[:],
 		Commitment4844:     commitment4844,
 		StartIndex:         existingUsersCount,
 		PreRoot:            preRoot,
