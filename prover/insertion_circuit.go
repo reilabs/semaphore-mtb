@@ -3,6 +3,7 @@ package prover
 import (
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/consensys/gnark/std/math/emulated"
 
@@ -18,7 +19,7 @@ import (
 
 type InsertionMbuCircuit struct {
 	// public inputs
-	InputHash frontend.Variable `gnark:",public"`
+	InputHash          frontend.Variable `gnark:",public"`
 	ExpectedEvaluation frontend.Variable `gnark:",public"`
 	Commitment4844     frontend.Variable `gnark:",public"`
 	StartIndex         frontend.Variable `gnark:",public"`
@@ -30,6 +31,7 @@ type InsertionMbuCircuit struct {
 	MerkleProofs [][]frontend.Variable `gnark:"input"`
 
 	Depth     int
+	BatchSize int
 	// TODO should these guys be here?
 	// Omega            big.Int // ω
 	// PolynomialDegree int
@@ -89,7 +91,7 @@ func evaluatePolynomial(
 	omegasToI := make([]emulated.Element[Fr], polynomialDegree)
 	omegaToI := big.NewInt(1)
 	for i := range polynomialDegree {
-		omegasToI[i] = emulated.ValueOf[Fr](omegaToI)
+		omegasToI[bits.Reverse64(uint64(i))>>52] = emulated.ValueOf[Fr](omegaToI)
 		omegaToI.Mul(omegaToI, startingOmega)
 	}
 
@@ -110,7 +112,12 @@ func evaluatePolynomial(
 }
 
 func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
-	rootHash := getMerkleTreeRoot(api, circuit.IdComms)
+	paddedIdComms := make([]frontend.Variable, 4096)
+	for i := range paddedIdComms {
+		paddedIdComms[i] = 0
+	}
+	copy(paddedIdComms, circuit.IdComms)
+	rootHash := getMerkleTreeRoot(api, paddedIdComms)
 	api.AssertIsEqual(circuit.InputHash, rootHash)
 
 	var bits []frontend.Variable
@@ -140,7 +147,7 @@ func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
 	challenge := abstractor.Call(api, FromBinaryBigEndian{Variable: hash})
 
 	// Calculate evaluation of polynomial interpolated by identities in the point x=challenge
-	evaluation := evaluatePolynomial(api, circuit.IdComms, challenge)
+	evaluation := evaluatePolynomial(api, paddedIdComms, challenge)
 	api.AssertIsEqual(circuit.ExpectedEvaluation, evaluation)
 
 	// Actual batch merkle proof verification.
@@ -153,6 +160,7 @@ func (circuit *InsertionMbuCircuit) Define(api frontend.API) error {
 			MerkleProofs: circuit.MerkleProofs,
 
 			Depth:     circuit.Depth,
+			BatchSize: circuit.BatchSize,
 		},
 	)
 

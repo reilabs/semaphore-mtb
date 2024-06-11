@@ -20,17 +20,18 @@ import (
 
 const (
 	numGoRoutines      = 0
-	existingUsersCount = 16384
-	incomingUsersCount = polynomialDegree
+	existingUsersCount = 1500
+	batchSize          = 20
+	depth              = 20
 )
 
 func TestInsertionCircuit(t *testing.T) {
-	incomingIds := generateRandomIdentities(incomingUsersCount)
-	smallTree := poseidon.NewTree(treeDepth(incomingUsersCount))
-	idComms := make([]frontend.Variable, incomingUsersCount)
+	incomingIds := generateRandomIdentities(batchSize)
+	smallTree := poseidon.NewTree(treeDepth(polynomialDegree))
+	idComms := make([]frontend.Variable, batchSize)
 	for i, id := range incomingIds {
 		idComms[i] = id
-		_ = smallTree.Update(i, id)
+		smallTree.Update(i, id)
 	}
 	incomingIdsTreeRoot := smallTree.Root()
 	incomingIdsTreeRoot = *bytesToBn254BigInt(incomingIdsTreeRoot.Bytes())
@@ -48,27 +49,30 @@ func TestInsertionCircuit(t *testing.T) {
 	err = ctx.VerifyKZGProof(commitment, challenge, evaluation, proof)
 	require.NoError(t, err)
 
-	existingIdsTreeDepth := treeDepth(existingUsersCount)
 	existingIds := generateRandomIdentities(existingUsersCount)
-	bigTree := poseidon.NewTree(existingIdsTreeDepth)
-	preRoot := bigTree.Root()
-	merkleProofs := make([][]frontend.Variable, existingUsersCount)
+	bigTree := poseidon.NewTree(depth)
 	for i, id := range existingIds {
-		update := bigTree.Update(i, id)
-		merkleProofs[i] = make([]frontend.Variable, len(update))
-		for j, v := range update {
+		bigTree.Update(i, id)
+	}
+	preRoot := bigTree.Root()
+	merkleProofs := make([][]frontend.Variable, batchSize)
+	for i, id := range incomingIds {
+		mp := bigTree.Update(i+existingUsersCount, id)
+		merkleProofs[i] = make([]frontend.Variable, len(mp))
+		for j, v := range mp {
 			merkleProofs[i][j] = v
 		}
 	}
 	postRoot := bigTree.Root()
 
 	circuit := InsertionMbuCircuit{
-		IdComms:      make([]frontend.Variable, incomingUsersCount),
-		MerkleProofs: make([][]frontend.Variable, existingUsersCount),
-		Depth:        existingIdsTreeDepth,
+		IdComms:      make([]frontend.Variable, batchSize),
+		MerkleProofs: make([][]frontend.Variable, batchSize),
+		Depth:        depth,
+		BatchSize:    batchSize,
 	}
-	for i, mp := range merkleProofs {
-		circuit.MerkleProofs[i] = make([]frontend.Variable, len(mp))
+	for i := range merkleProofs {
+		circuit.MerkleProofs[i] = make([]frontend.Variable, depth)
 	}
 
 	assignment := InsertionMbuCircuit{
@@ -80,7 +84,8 @@ func TestInsertionCircuit(t *testing.T) {
 		PostRoot:           postRoot,
 		IdComms:            idComms,
 		MerkleProofs:       merkleProofs,
-		Depth:              existingIdsTreeDepth,
+		Depth:              depth,
+		BatchSize:          batchSize,
 	}
 
 	assert := test.NewAssert(t)
@@ -90,21 +95,13 @@ func TestInsertionCircuit(t *testing.T) {
 	)
 }
 
-// generateRandomIdentities generates a slice of random big integers reduced modulo BN254 FR,
-// but not smaller than modulo/4, of the given count.
+// generateRandomIdentities generates a slice of random big integers reduced modulo BN254 FR.
 func generateRandomIdentities(count int) []big.Int {
 	ids := make([]big.Int, count)
-	modulus := bn254fr.Modulus()
-	minVal := new(big.Int).Div(modulus, big.NewInt(4)) // modulus / 4
-
 	for i := range ids {
-		n, _ := rand.Int(rand.Reader, modulus)
-		if n.Cmp(minVal) < 0 {
-			n = minVal
-		}
+		n, _ := rand.Int(rand.Reader, bn254fr.Modulus())
 		ids[i] = *n
 	}
-
 	return ids
 }
 
@@ -113,14 +110,11 @@ func identitiesToBlob(ids []big.Int) *gokzg4844.Blob {
 	if len(ids) > gokzg4844.ScalarsPerBlob {
 		panic("too many identities for a blob")
 	}
-
-	var b []byte
-	for _, id := range ids {
-		b = append(b, id.Bytes()...)
-	}
-
 	var blob gokzg4844.Blob
-	copy(blob[:], b)
+	for i, id := range ids {
+		startByte := i * 32
+		id.FillBytes(blob[startByte : startByte+32])
+	}
 	return &blob
 }
 
@@ -147,7 +141,6 @@ func bigIntsToChallenge(input []big.Int) (challenge gokzg4844.Scalar) {
 	copy(challenge[:], hashBytes)
 	return challenge
 }
-
 
 // treeDepth calculates the depth of a binary tree containing the given number of leaves
 func treeDepth(leavesCount int) (height int) {
