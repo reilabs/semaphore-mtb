@@ -32,9 +32,6 @@ type InsertionMbuCircuit struct {
 
 	Depth     int
 	BatchSize int
-	// TODO should these guys be here?
-	// Omega            big.Int // ω
-	// PolynomialDegree int
 }
 
 // getMerkleTreeRoot calculates the Merkle Tree root repeatedly hashing pairs of elements in the input slice until only
