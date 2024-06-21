@@ -7,7 +7,7 @@ import (
 )
 
 // CalculateBarycentricFormula implements the evaluation of a polynomial in evaluation form at a point outside the
-// domain, using barycentric interpolation. This function follows the implementation by Dankrad Feist, as described
+// domain, using barycentric interpolation. This function follows the formulation by Dankrad Feist, as described
 // in his blog post: https://dankradfeist.de/ethereum/2021/06/18/pcs-multiproofs.html.
 //
 // The formula used for calculation is: ((z^d - 1) / d) * Σ((f_i * ω^i) / (z - ω^i)) for i=0 to d-1,
