@@ -15,6 +15,7 @@ import (
 	"worldcoin/gnark-mbu/logging"
 
 	"github.com/consensys/gnark-crypto/ecc"
+
 	"github.com/consensys/gnark/backend/groth16"
 	bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 )
@@ -36,21 +37,39 @@ func toHex(i *big.Int) string {
 }
 
 type InsertionResponseJSON struct {
-	InputHash          string `json:"inputHash"`
-	ExpectedEvaluation string `json:"expectedEvaluation"`
-	Commitment4844     string `json:"commitment4844"`
-	Proof              Proof  `json:"proof"`
-	KzgProof           string `json:"kzgProof"`
+	InputHash          string   `json:"inputHash"`
+	ExpectedEvaluation string   `json:"expectedEvaluation"`
+	Commitment4844     string   `json:"commitment4844"`
+	KzgCommitment      []string `json:"kzgCommitment"`
+	Proof              Proof    `json:"proof"`
+	KzgProof           []string `json:"kzgProof"`
+	PostRoot           string   `json:"postRoot"`
+	Challenge          string   `json:"challenge"`
 }
 
 func (r *InsertionResponse) MarshalJSON() ([]byte, error) {
+	kzgProofParts := []string{
+		"0x" + hex.EncodeToString(r.KzgProof[:16]),
+		"0x" + hex.EncodeToString(r.KzgProof[16:32]),
+		"0x" + hex.EncodeToString(r.KzgProof[32:48]),
+	}
+
+	kzgCommitmentParts := []string{
+		"0x" + hex.EncodeToString(r.KzgCommitment[:16]),
+		"0x" + hex.EncodeToString(r.KzgCommitment[16:32]),
+		"0x" + hex.EncodeToString(r.KzgCommitment[32:48]),
+	}
+
 	return json.Marshal(
 		&InsertionResponseJSON{
 			InputHash:          toHex(&r.InputHash),
-			ExpectedEvaluation: hex.EncodeToString(r.ExpectedEvaluation[:]),
-			Commitment4844:     hex.EncodeToString(r.Commitment4844[:]),
+			ExpectedEvaluation: toHex(&r.ExpectedEvaluation),
+			Commitment4844:     toHex(&r.Commitment4844),
+			KzgCommitment:      kzgCommitmentParts,
 			Proof:              r.Proof,
-			KzgProof:           hex.EncodeToString(r.KzgProof[:]),
+			KzgProof:           kzgProofParts,
+			PostRoot:           toHex(&r.PostRoot),
+			Challenge:          toHex(&r.Challenge),
 		},
 	)
 }
@@ -65,25 +84,47 @@ func (r *InsertionResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	expectedEvaluation, err := hex.DecodeString(aux.ExpectedEvaluation)
-	if err != nil || len(expectedEvaluation) != 32 {
-		return fmt.Errorf("invalid ExpectedEvaluation: %s", aux.ExpectedEvaluation)
+	if err := fromHex(&r.ExpectedEvaluation, aux.ExpectedEvaluation); err != nil {
+		return err
 	}
-	copy(r.ExpectedEvaluation[:], expectedEvaluation)
 
-	commitment4844, err := hex.DecodeString(aux.Commitment4844)
-	if err != nil || len(commitment4844) != 48 {
-		return fmt.Errorf("invalid Commitment4844: %s", aux.Commitment4844)
+	if err := fromHex(&r.Commitment4844, aux.Commitment4844); err != nil {
+		return err
 	}
-	copy(r.Commitment4844[:], commitment4844)
+
+	var kzgCommitment []byte
+	for _, part := range aux.KzgCommitment {
+		partBytes, err := hex.DecodeString(part)
+		if err != nil || len(partBytes) != 16 {
+			return fmt.Errorf("invalid KzgProof part: %s", part)
+		}
+		kzgCommitment = append(kzgCommitment, partBytes...)
+	}
+	if len(kzgCommitment) != 48 {
+		return fmt.Errorf("invalid concatenated KzgCommitment length: %d", len(kzgCommitment))
+	}
 
 	r.Proof = aux.Proof
 
-	kzgProof, err := hex.DecodeString(aux.KzgProof)
-	if err != nil || len(kzgProof) != 48 {
-		return fmt.Errorf("invalid KzgProof: %s", aux.KzgProof)
+	var kzgProof []byte
+	for _, part := range aux.KzgProof {
+		partBytes, err := hex.DecodeString(part)
+		if err != nil || len(partBytes) != 16 {
+			return fmt.Errorf("invalid KzgProof part: %s", part)
+		}
+		kzgProof = append(kzgProof, partBytes...)
 	}
-	copy(r.KzgProof[:], kzgProof)
+	if len(kzgProof) != 48 {
+		return fmt.Errorf("invalid concatenated KzgProof length: %d", len(kzgProof))
+	}
+
+	if err := fromHex(&r.PostRoot, aux.PostRoot); err != nil {
+		return err
+	}
+
+	if err := fromHex(&r.Challenge, aux.Challenge); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	poseidon "worldcoin/gnark-mbu/poseidon_native"
 
 	"github.com/consensys/gnark-crypto/ecc"
+
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -26,10 +27,13 @@ type InsertionParameters struct {
 
 type InsertionResponse struct {
 	InputHash          big.Int
-	ExpectedEvaluation gokzg4844.Scalar
-	Commitment4844     gokzg4844.KZGCommitment
+	ExpectedEvaluation big.Int
+	Commitment4844     big.Int
+	KzgCommitment      gokzg4844.KZGCommitment
 	Proof              Proof
 	KzgProof           gokzg4844.KZGProof
+	PostRoot           big.Int
+	Challenge          big.Int
 }
 
 func (p *InsertionParameters) ValidateShape(treeDepth uint32, batchSize uint32) error {
@@ -144,10 +148,13 @@ func (ps *ProvingSystem) ProveInsertion(params *InsertionParameters) (*Insertion
 	logging.Logger().Info().Msg("proof generated successfully")
 	return &InsertionResponse{
 		InputHash:          incomingIdsTreeRoot,
-		ExpectedEvaluation: evaluation,
-		Commitment4844:     commitment,
+		ExpectedEvaluation: *bytesToBn254BigInt(evaluation[:]),
+		Commitment4844:     commitment4844,
+		KzgCommitment:      commitment,
 		Proof:              Proof{proof},
 		KzgProof:           kzgProof,
+		PostRoot:           params.PostRoot,
+		Challenge:          *bytesToBn254BigInt(challenge[:]),
 	}, nil
 }
 
