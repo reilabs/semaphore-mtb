@@ -13,9 +13,10 @@ import (
 	"worldcoin/gnark-mbu/prover"
 	"worldcoin/gnark-mbu/server"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/consensys/gnark/constraint"
 	gnarkLogger "github.com/consensys/gnark/logger"
-	"github.com/urfave/cli/v2"
 )
 
 func main() {

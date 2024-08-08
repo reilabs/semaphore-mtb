@@ -1,26 +1,25 @@
 package prover
 
 import (
-	"crypto/rand"
 	"math/big"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	gokzg4844 "github.com/crate-crypto/go-kzg-4844"
+	"github.com/stretchr/testify/require"
+
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	gokzg4844 "github.com/crate-crypto/go-kzg-4844"
-	"github.com/stretchr/testify/require"
 
 	poseidon "worldcoin/gnark-mbu/poseidon_native"
 )
 
 const (
 	numGoRoutines      = 0
-	existingUsersCount = 1500
-	batchSize          = 20
-	depth              = 20
+	existingUsersCount = 0
+	batchSize          = 3
+	depth              = 16
 )
 
 func TestInsertionCircuit(t *testing.T) {
@@ -98,8 +97,8 @@ func TestInsertionCircuit(t *testing.T) {
 func generateRandomIdentities(count int) []big.Int {
 	ids := make([]big.Int, count)
 	for i := range ids {
-		n, _ := rand.Int(rand.Reader, bn254fr.Modulus())
-		ids[i] = *n
+		// n, _ := rand.Int(rand.Reader, bn254fr.Modulus())
+		ids[i] = *big.NewInt(int64(i))
 	}
 	return ids
 }

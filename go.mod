@@ -2,6 +2,8 @@ module worldcoin/gnark-mbu
 
 go 1.22.2
 
+replace github.com/consensys/gnark => ../gnark
+
 require (
 	github.com/consensys/gnark v0.10.1-0.20240504042958-c51abfa3c4e0
 	github.com/iden3/go-iden3-crypto v0.0.13
