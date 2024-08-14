@@ -1,6 +1,8 @@
 package prover
 
 import (
+	"encoding/hex"
+	"log"
 	"math/big"
 	"testing"
 
@@ -85,6 +87,23 @@ func TestInsertionCircuit(t *testing.T) {
 		BatchSize:          batchSize,
 		Depth:              depth,
 	}
+
+	log.Printf("ExpectedEvaluation: 0x%s\n", hex.EncodeToString(evaluation[:]))
+	log.Printf("kzgCommitmentReduced: 0x%s\n", versionedKzgHashReduced.Text(16))
+	log.Printf("kzgChallenge: 0x%s\n", hex.EncodeToString(challenge[:]))
+	kzgProofParts := []string{
+		"0x" + hex.EncodeToString(proof[:16]),
+		"0x" + hex.EncodeToString(proof[16:32]),
+		"0x" + hex.EncodeToString(proof[32:48]),
+	}
+	log.Printf("kzgProof = [%s, %s, %s]\n", kzgProofParts[0], kzgProofParts[1], kzgProofParts[2])
+
+	kzgCommitmentParts := []string{
+		"0x" + hex.EncodeToString(commitment[:16]),
+		"0x" + hex.EncodeToString(commitment[16:32]),
+		"0x" + hex.EncodeToString(commitment[32:48]),
+	}
+	log.Printf("kzgCommitment = [%s, %s, %s]\n", kzgCommitmentParts[0], kzgCommitmentParts[1], kzgCommitmentParts[2])
 
 	assert := test.NewAssert(t)
 	assert.CheckCircuit(
