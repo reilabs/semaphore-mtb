@@ -2,9 +2,11 @@ package prover
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark/backend"
 	"math/big"
+	"os"
 
 	gokzg4844 "github.com/crate-crypto/go-kzg-4844"
 
@@ -152,6 +154,12 @@ func (ps *ProvingSystem) ProveInsertion(params *InsertionParameters) (*Insertion
 	}
 
 	logging.Logger().Info().Msg("proof generated successfully")
+	fmt.Fprintf(os.Stderr,
+		"postRoot: %s, challenge: %s versionedKzgHash: %s",
+		params.PostRoot.Text(16),
+		hex.EncodeToString(challenge[:]),
+		hex.EncodeToString(versionedKzgHash[:]),
+	)
 	return &InsertionResponse{
 		InputHash:          incomingIdsTreeRoot,
 		ExpectedEvaluation: evaluation,
