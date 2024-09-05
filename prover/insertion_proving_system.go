@@ -104,6 +104,13 @@ func (ps *ProvingSystem) ProveInsertion(params *InsertionParameters) (*Insertion
 
 	const numGoRoutines = 0
 	blob := identitiesToBlob(params.IdComms)
+
+	logging.Logger().Info().Msg("dumping kzg blob to blob.bin")
+	fBlob, err := os.Create("blob.bin")
+	if err != nil {panic(err)}
+	_, err = fBlob.Write(blob[:])
+	if err != nil {panic(err)}
+
 	commitment, err := ctx.BlobToKZGCommitment(blob, numGoRoutines)
 	if err != nil {
 		return nil, err
