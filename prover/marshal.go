@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"strings"
 
 	curve "github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
@@ -28,11 +29,34 @@ func fromHex(i *big.Int, s string) error {
 }
 
 func toHexElement(i fp.Element) string {
-	return fmt.Sprintf("0x%s", i.Text(16))
+	hexString := i.Text(16)
+	if len(hexString) % 2 != 0 {
+		hexString = "0" + hexString
+	}
+	return "0x" + hexString
 }
 
 func toHex(i *big.Int) string {
-	return fmt.Sprintf("0x%s", i.Text(16))
+	hexString := i.Text(16)
+	if len(hexString) % 2 != 0 {
+		hexString = "0" + hexString
+	}
+	return "0x" + hexString
+}
+
+func encodeToString(data []byte) string {
+	encodedString := hex.EncodeToString(data)
+	if len(encodedString) % 2 != 0 {
+		encodedString = "0" + encodedString
+	}
+	return "0x" + encodedString
+}
+
+func decodeString(s string) ([]byte, error) {
+	if strings.HasPrefix(s, "0x") {
+		s = s[2:]
+	}
+	return hex.DecodeString(s)
 }
 
 type InsertionResponseJSON struct {
@@ -45,21 +69,21 @@ type InsertionResponseJSON struct {
 
 func (r *InsertionResponse) MarshalJSON() ([]byte, error) {
 	kzgCommitmentParts := []string{
-		hex.EncodeToString(r.Commitment4844[:16]),
-		hex.EncodeToString(r.Commitment4844[16:32]),
-		hex.EncodeToString(r.Commitment4844[32:48]),
+		encodeToString(r.Commitment4844[:16]),
+		encodeToString(r.Commitment4844[16:32]),
+		encodeToString(r.Commitment4844[32:48]),
 	}
 
 	kzgProofParts := []string{
-		hex.EncodeToString(r.KzgProof[:16]),
-		hex.EncodeToString(r.KzgProof[16:32]),
-		hex.EncodeToString(r.KzgProof[32:48]),
+		encodeToString(r.KzgProof[:16]),
+		encodeToString(r.KzgProof[16:32]),
+		encodeToString(r.KzgProof[32:48]),
 	}
 
 	return json.Marshal(
 		&InsertionResponseJSON{
 			InputHash:          toHex(&r.InputHash),
-			ExpectedEvaluation: hex.EncodeToString(r.ExpectedEvaluation[:]),
+			ExpectedEvaluation: encodeToString(r.ExpectedEvaluation[:]),
 			Commitment4844:     kzgCommitmentParts,
 			Proof:              r.Proof,
 			KzgProof:           kzgProofParts,
@@ -77,7 +101,7 @@ func (r *InsertionResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	expectedEvaluation, err := hex.DecodeString(aux.ExpectedEvaluation)
+	expectedEvaluation, err := decodeString(aux.ExpectedEvaluation)
 	if err != nil || len(expectedEvaluation) != 32 {
 		return fmt.Errorf("invalid ExpectedEvaluation: %s", aux.ExpectedEvaluation)
 	}
@@ -85,7 +109,7 @@ func (r *InsertionResponse) UnmarshalJSON(data []byte) error {
 
 	var commitment4844 []byte
 	for _, part := range aux.Commitment4844 {
-		partBytes, err := hex.DecodeString(part)
+		partBytes, err := decodeString(part)
 		if err != nil || len(partBytes) != 16 {
 			return fmt.Errorf("invalid Commitment4844 part: %s", part)
 		}
@@ -100,7 +124,7 @@ func (r *InsertionResponse) UnmarshalJSON(data []byte) error {
 
 	var kzgProof []byte
 	for _, part := range aux.KzgProof {
-		partBytes, err := hex.DecodeString(part)
+		partBytes, err := decodeString(part)
 		if err != nil || len(partBytes) != 16 {
 			return fmt.Errorf("invalid KzgProof part: %s", part)
 		}

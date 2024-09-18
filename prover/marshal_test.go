@@ -78,5 +78,32 @@ func TestProof_UnmarshalJSON(t *testing.T) {
 	if err != nil {t.Fatal(err)}
 
 	assert.Equal(t, proofBytes, buf.Bytes())
+}
 
+const responseJsonString =
+	`{"inputHash":"0x0afc79c0ff6c2bda6ac6da9c2ebf2847736f401232edba679934b9814c220ef4",` +
+		`"expectedEvaluation":"0x66aabd2a4cbd7d0a43699b49b35e4d646633b9ac20d5904776d3b13457df8749",` +
+		`"commitment4844":` +
+			`["0xa492ad8b5f346fabd1b11e2db160943a","0xc36918f465155cf86cf351504a81aa83","0xce3d71f2635e4789471187e569657963"],` +
+		`"proof":{` +
+			`"ar":["0x2baa428d3bae48e9cf04b2de8588325964a3cf3daf4206b5f75e331074d2cd81","0x21cd9dcd963a784558bad5eed11a39bfab38405d025a7740e8195d5dbe20ba94"],` +
+			`"bs":`+
+				`[["0x17ca1a45694dc9a8e827f7d16a9ea9e93d5f569bde58815a5cd2a49da32a752a","0x09b0ddca06e0fa3cf98fd11f90235f61f1ba6f2b9d435307af92998393a16998"],` +
+				`["0x05f4f75c698561baaca11f3612f7afa1ca78453863b42ba59180aa8c62ec4bb5","0x137af61b97f010fd7335946140afaf794b0ef132ae337a732450d4b6cf726291"]],` +
+			`"krs":["0x13fff4aeabfd59e1534f81871b9735c534af8de1b1ff58b33275d5d1a321c758","0x13b066bb759456b41cc92ac34f6baf0fd23f04df411df60e3c911a6fe9221832"],` +
+			`"commitments":[["0x0dbd13d6de97557a4325b321caf44bc5500b340861253944d0b31c3dec627d15","0x221e1f68ae4532fe3aa8cca6523ab65c8f4300040688fe70bb56257f51f89682"]],` +
+			`"commitmentPok":["0x0856040dc3f26cc5ac686892be084d462aa6822d583acad8f832c226bbcd0b28","0x199529ab2cdb77bb9659429251d4fa0d620ba66f81aaeaae8eb80578f5ecc7b9"]` +
+		`},` +
+		`"kzgProof":["0xb459532a84b0f0a1dadbb694adc18ed3","0x82ddce5d42450ab7c0beb966f6a54639","0xfda5b82f7a63f3bafbca6e440caff67c"]` +
+	`}`
+
+func TestInsertionResponse_UnmarshalJSON(t *testing.T) {
+	var response InsertionResponse
+	err := json.Unmarshal([]byte(responseJsonString), &response)
+	assert.NoError(t, err)
+
+	marshaled, err := json.Marshal(&response)
+	assert.NoError(t, err)
+
+	assert.Equal(t, responseJsonString, string(marshaled))
 }

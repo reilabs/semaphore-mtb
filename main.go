@@ -344,8 +344,13 @@ func main() {
 						logging.Logger().Info().Msg("params read successfully")
 						var response *prover.InsertionResponse
 						response, err = ps.ProveInsertion(&params)
+						if err != nil {
+							logging.Logger().Error().Msg("insertion prove failed")
+							return err
+						}
 						r, err = json.Marshal(&response)
 						if err != nil {
+							logging.Logger().Error().Msg("insertion prove response marshal failed")
 							return err
 						}
 					} else if mode == server.DeletionMode {
@@ -357,8 +362,13 @@ func main() {
 						logging.Logger().Info().Msg("params read successfully")
 						var proof *prover.Proof
 						proof, err = ps.ProveDeletion(&params)
+						if err != nil {
+							logging.Logger().Error().Msg("deletion prove failed")
+							return err
+						}
 						r, err = json.Marshal(&proof)
 						if err != nil {
+							logging.Logger().Error().Msg("deletion prove response marshal failed")
 							return err
 						}
 					} else {
